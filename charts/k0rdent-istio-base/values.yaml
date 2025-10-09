@@ -1,0 +1,44 @@
+kcm:
+  namespace: kcm-system
+
+k0rdent-istio:
+  repo:
+    name: istio-registry
+    spec:
+      type: oci
+      url: oci://ghcr.io/k0rdent/istio/charts
+
+cert-manager-service-template:
+  enabled: true
+  repo:
+    name: cert-manager
+    url: https://charts.jetstack.io
+  chart: cert-manager:v1.16.4
+  namespace: kcm-system
+
+global: {}
+
+# List of namespaces on remote clusters where Istio sidecar injection should be enabled
+injectionNamespaces: []
+
+gateway:
+  version: 1.24.3
+
+  resource:
+    apiVersion: networking.istio.io/v1
+    kind: Gateway
+    metadata:
+      name: network-gateway
+      namespace: istio-system
+    spec:
+      selector:
+        istio: eastwestgateway
+      servers:
+        - port:
+            number: 15443
+            name: tls
+            protocol: TLS
+          tls:
+            mode: AUTO_PASSTHROUGH
+          hosts:
+            - "*.local"

@@ -1,0 +1,54 @@
+{{- if .Values.operator.rbac.create -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "operator.fullname" . }}-istio-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - events
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - patch
+  - watch
+- apiGroups:
+  - k0rdent.mirantis.com
+  resources:
+  - clusterdeployments
+  - multiclusterservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - k0rdent.mirantis.com
+  resources:
+  - clusterdeployments/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - list
+  - watch
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
+{{- end }}

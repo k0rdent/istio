@@ -1,0 +1,25 @@
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ClusterDeployment
+metadata:
+  name: istio-aws-ue2
+  namespace: kcm-system
+  labels:
+    k0rdent.mirantis.com/istio-role: member
+    k0rdent.mirantis.com/istio-gateway: "true"
+spec:
+  template: aws-standalone-cp-1-0-14
+  credential: aws-cluster-identity-cred
+  config:
+    clusterIdentity:
+      name: aws-cluster-identity
+      namespace: kcm-system
+
+    region: us-east-2
+
+    controlPlaneNumber: 1
+    controlPlane:
+      instanceType: t3.large
+
+    workersNumber: 1
+    worker:
+      instanceType: t3.xlarge

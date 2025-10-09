@@ -1,0 +1,14 @@
+{{- if .Values.telemetry.enabled }}
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  namespace: istio-system
+  name: otel-tracing
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+spec:
+  tracing:
+  - providers:
+    - name: otel-tracing
+      randomSamplingPercentage: {{ .Values.telemetry.traces_sampling_percentage }}
+{{- end }}
