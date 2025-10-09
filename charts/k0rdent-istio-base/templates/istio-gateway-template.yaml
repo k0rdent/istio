@@ -1,0 +1,69 @@
+{{- $global := .Values.global | default dict }}
+{{- $version := .Values.gateway.version | replace "." "-" }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplate
+metadata:
+  name: {{ .Chart.Name }}-gateway-{{ $version }}
+  namespace: {{ .Values.kcm.namespace }}
+spec:
+  helm:
+    chartSpec:
+      chart: gateway
+      version: {{ .Values.gateway.version }}
+      interval: 10m0s
+      sourceRef:
+        kind: HelmRepository
+        name: istio
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: istio
+  namespace: {{ .Values.kcm.namespace }}
+  labels:
+    k0rdent.mirantis.com/managed: "true"
+spec:
+  interval: 10m
+  {{- with $global.helmChartsRepo }}
+  url: {{ $global.helmChartsRepo }}
+  {{- else }}
+  url: https://istio-release.storage.googleapis.com/charts
+  {{- end }}
+  {{- with $global.helmRepoCreds | default (index .Values "k0rdent-istio").repo.spec }}
+  {{- if .secretRef }}
+  secretRef:
+    {{- .secretRef | toYaml | nindent 4 }}
+  {{- end }}
+  {{- if .certSecretRef }}
+  certSecretRef:
+    {{- .certSecretRef | toYaml | nindent 4 }}
+  {{- end }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-gateway-template
+  namespace: {{ .Values.kcm.namespace }}
+  annotations:
+    projectsveltos.io/template: "true"
+data:
+  gateway.yaml: |
+{{ .Values.gateway.resource | toYaml | indent 4 }}
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplate
+metadata:
+  name: {{ .Release.Name }}-gateway-template
+  namespace: {{ .Values.kcm.namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  resources:
+    localSourceRef:
+      kind: ConfigMap
+      name: {{ .Chart.Name }}-gateway-template
+      namespace: {{ .Values.kcm.namespace }}
+    deploymentType: Remote
+    path: ""
+

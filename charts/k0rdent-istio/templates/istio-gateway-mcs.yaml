@@ -1,0 +1,24 @@
+{{- if .Values.rootCA.enabled }}
+{{- $version := .Values.gateway.version | replace "." "-" }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-gateway
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/istio-role: member
+      k0rdent.mirantis.com/istio-gateway: "true"
+  serviceSpec:
+    services:
+      - name: istio-gateway
+        namespace: {{ .Release.Namespace }}
+        template: k0rdent-istio-base-gateway-{{ $version }}
+        values: |
+          networkGateway: {{ `{{ .Cluster.metadata.name }}` }}-network
+          labels:
+            istio: eastwestgateway
+      - name: gateway-template
+        namespace: {{ .Release.Namespace }}
+        template: k0rdent-istio-base-gateway-template
+{{- end}}

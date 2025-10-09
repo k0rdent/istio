@@ -1,0 +1,35 @@
+{{ range $name, $value := .Values.intermediateCAs }}
+{{- if $value.certificate }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+  namespace: {{ $.Release.Namespace }}
+spec:
+  isCA: true
+  commonName: {{ $name }} CA
+  subject:
+    organizations:
+      - Istio
+  secretName: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: {{ $.Chart.Name }}-root
+    kind: Issuer
+    group: cert-manager.io
+{{- end }}
+{{- if $value.issuer }}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+  namespace: {{ $.Release.Namespace }}
+spec:
+  ca:
+    secretName: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+{{- end }}
+{{- end }}

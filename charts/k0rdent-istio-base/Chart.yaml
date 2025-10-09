@@ -1,0 +1,11 @@
+apiVersion: v2
+name: k0rdent-istio-base
+description: Istio base chart that deploys ServiceTemplate and config map needed to run k0rdent-istio
+version: "0.1.0"
+appVersion: "0.1.0"
+dependencies:
+  - name: kgst
+    condition: cert-manager-service-template.enabled
+    alias: cert-manager-service-template
+    version: "1.2.0"
+    repository: oci://ghcr.io/k0rdent/catalog/charts

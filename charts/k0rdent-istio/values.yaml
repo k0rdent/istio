@@ -1,0 +1,89 @@
+cert-manager:
+  enabled: true
+  template: cert-manager-v1-16-4
+gateway:
+  version: 1.24.3
+kcm:
+  namespace: kcm-system
+telemetry:
+  enabled: true
+  traces_sampling_percentage: 100
+rootCA:
+  enabled: true
+intermediateCAs:
+  management:
+    namespace: kcm-system
+    certificate: true
+    issuer: true
+global:
+  caAddress: cert-manager-istio-csr.istio-system.svc:443
+  meshID: main
+  externalIstiod: true
+  multiCluster:
+    clusterName: management
+  network: management-network
+  meshConfig:
+    accessLogFile: /dev/stdout
+cert-manager-istio-csr:
+  app:
+    tls:
+      certificateDNSNames:
+        - cert-manager-istio-csr.istio-system.svc
+    certmanager:
+      issuer:
+        name: k0rdent-istio-kcm-system-management-ca
+        kind: Issuer
+        group: cert-manager.io
+    server:
+      clusterID: management
+istiod:
+  extraContainerArgs:
+    - --tlsCertFile=/etc/cert-manager/tls/tls.crt
+    - --tlsKeyFile=/etc/cert-manager/tls/tls.key
+    - --caCertFile=/etc/cert-manager/ca/root-cert.pem
+  volumeMounts:
+    - mountPath: /etc/cert-manager/tls
+      name: cert-manager
+      readOnly: true
+    - mountPath: /etc/cert-manager/ca
+      name: ca-root-cert
+      readOnly: true
+  volumes:
+    - name: cert-manager
+      secret:
+        defaultMode: 420
+        secretName: istiod-tls
+    - name: ca-root-cert
+      configMap:
+        defaultMode: 420
+        name: istio-ca-root-cert
+        optional: true
+  meshConfig:
+    enableTracing: true
+    extensionProviders: []
+    defaultConfig:
+      proxyMetadata:
+        ISTIO_META_DNS_CAPTURE: "true"
+  env:
+    ENABLE_CA_SERVER: false
+operator:
+  enabled: true
+  replicaCount: 1
+  rbac:
+    create: true
+  image:
+    registry: ghcr.io/k0rdent
+    repository: istio/istio-operator-controller
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+
