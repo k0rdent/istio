@@ -1,0 +1,15 @@
+{{- if .Values.rootCA.enabled }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-namespaces
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/istio-role: member
+  serviceSpec:
+    services:
+      - name: {{ .Release.Name }}-namespaces
+        namespace: {{ .Values.kcm.namespace }}
+        template: k0rdent-istio-base-namespaces
+{{- end }}
