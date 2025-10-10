@@ -58,7 +58,7 @@ kubectl exec -n sample -c sleep "$(kubectl get pod -n sample -l app=sleep -o jso
 If the connection is successful, you should see an output similar to:
 
 ```planetext
-Hello version: v2, instance: helloworld-v2-6746879bdd-55v7z
+Hello version: v1, instance: helloworld-v1-6746879bdd-55v7z
 ```
 
 This indicates that the connection has been successfully established and that the management cluster can access the remote cluster.
