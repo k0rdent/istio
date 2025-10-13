@@ -48,10 +48,8 @@ import (
 )
 
 var (
-	scheme        = runtime.NewScheme()
-	setupLog      = ctrl.Log.WithName("setup")
-	shutdownLog   = ctrl.Log.WithName("shutdown")
-	httpServerLog = ctrl.Log.WithName("http-server")
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
