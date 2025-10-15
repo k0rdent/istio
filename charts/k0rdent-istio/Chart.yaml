@@ -9,8 +9,8 @@ dependencies:
     repository: "https://charts.jetstack.io"
   - alias: istiobase
     name: base
-    version: "1.24.3"
+    version: "1.25.5"
     repository: "https://istio-release.storage.googleapis.com/charts"
   - name: istiod
-    version: "1.24.3"
+    version: "1.25.5"
     repository: "https://istio-release.storage.googleapis.com/charts"

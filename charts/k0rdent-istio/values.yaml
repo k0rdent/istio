@@ -2,7 +2,7 @@ cert-manager:
   enabled: true
   template: cert-manager-v1-16-4
 gateway:
-  version: 1.24.3
+  version: 1.25.5
 kcm:
   namespace: kcm-system
 telemetry:

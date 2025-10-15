@@ -22,7 +22,7 @@ global: {}
 injectionNamespaces: []
 
 gateway:
-  version: 1.24.3
+  version: 1.25.5
 
   resource:
     apiVersion: networking.istio.io/v1
