@@ -25,6 +25,7 @@ import (
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,9 +46,10 @@ const MaxRetryDelay = 15 * time.Second
 // ClusterDeploymentReconciler reconciles a ClusterDeployment object
 type ClusterDeploymentReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
-	RemoteSecretManager *remotesecret.RemoteSecretManager
-	IstioCertManager    *cert.CertManager
+	Scheme                         *runtime.Scheme
+	RemoteSecretManager            *remotesecret.RemoteSecretManager
+	IstioCertManager               *cert.CertManager
+	RemoteSecretPropagationManager *multicluster.RemoteSecretPropagationManager
 }
 
 // +kubebuilder:rbac:groups=k0rdent.mirantis.com,resources=clusterdeployments,verbs=get;list;watch;create;update;patch;delete
@@ -125,6 +127,18 @@ func (r *ClusterDeploymentReconciler) tryDeleteResources(ctx context.Context, re
 		return ctrl.Result{}, err
 	}
 
+	if err := r.RemoteSecretPropagationManager.TryDelete(ctx, req); err != nil {
+		utils.LogEvent(
+			ctx,
+			"MultiClusterServiceDeletionFailed",
+			"Failed to delete MultiClusterService",
+			clusterDeployment,
+			err,
+			"multiClusterServiceName", multicluster.GetMultiClusterServiceName(req.Name, req.Namespace),
+		)
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -149,6 +163,18 @@ func (r *ClusterDeploymentReconciler) tryCreateResources(ctx context.Context, re
 			clusterDeployment,
 			err,
 			"certName", cert.GetCertName(req.Name, req.Namespace),
+		)
+		return ctrl.Result{}, err
+	}
+
+	if err := r.RemoteSecretPropagationManager.TryCreate(ctx, clusterDeployment); err != nil {
+		utils.LogEvent(
+			ctx,
+			"MultiClusterServiceCreationFailed",
+			"Failed to create MultiClusterService",
+			clusterDeployment,
+			err,
+			"multiClusterServiceName", multicluster.GetMultiClusterServiceName(req.Name, req.Namespace),
 		)
 		return ctrl.Result{}, err
 	}

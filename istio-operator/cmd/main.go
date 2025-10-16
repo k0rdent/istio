@@ -40,6 +40,7 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	sveltosv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 
@@ -159,10 +160,11 @@ func main() {
 	record.InitFromRecorder(mgr.GetEventRecorderFor("istio-operator"))
 
 	if err = (&controller.ClusterDeploymentReconciler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		IstioCertManager:    cert.New(mgr.GetClient()),
-		RemoteSecretManager: remotesecret.New(mgr.GetClient()),
+		Client:                         mgr.GetClient(),
+		Scheme:                         mgr.GetScheme(),
+		IstioCertManager:               cert.New(mgr.GetClient()),
+		RemoteSecretManager:            remotesecret.New(mgr.GetClient()),
+		RemoteSecretPropagationManager: multicluster.New(mgr.GetClient()),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterDeployment")
 		os.Exit(1)

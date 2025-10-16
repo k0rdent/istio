@@ -3,13 +3,17 @@ package utils
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"strconv"
 	"strings"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -103,4 +107,24 @@ func LogEvent(
 
 func IsAdopted(cluster *kcmv1beta1.ClusterDeployment) bool {
 	return strings.HasPrefix(cluster.Spec.Template, "adopted-")
+}
+
+func GetNameHash(prefix, name string) string {
+	h := fnv.New32a()
+	h.Write([]byte(name))
+
+	return fmt.Sprintf("%s-%x", prefix, h.Sum32())
+}
+
+func IsResourceExists(ctx context.Context, client client.Client, obj client.Object, name, namespace string) (bool, error) {
+	if err := client.Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}, obj); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

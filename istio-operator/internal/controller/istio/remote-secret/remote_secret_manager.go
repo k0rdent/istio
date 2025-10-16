@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -145,16 +144,8 @@ func (rs *RemoteSecretManager) getFullSecretName(cd *kcmv1beta1.ClusterDeploymen
 
 func (rs *RemoteSecretManager) remoteSecretExists(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
 	secret := &corev1.Secret{}
-	if err := rs.client.Get(ctx, types.NamespacedName{
-		Name:      GetRemoteSecretName(cd.Name, cd.Namespace),
-		Namespace: istio.IstioSystemNamespace,
-	}, secret); err != nil {
-		if errors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
+	secretName := GetRemoteSecretName(cd.Name, cd.Namespace)
+	return utils.IsResourceExists(ctx, rs.client, secret, secretName, istio.IstioSystemNamespace)
 }
 
 // Function creates the remote secret resource in k8s

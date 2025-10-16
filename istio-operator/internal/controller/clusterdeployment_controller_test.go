@@ -9,6 +9,7 @@ import (
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -106,10 +107,11 @@ var _ = Describe("ClusterDeployment Controller", func() {
 
 		BeforeEach(func() {
 			clusterDeploymentReconciler = &ClusterDeploymentReconciler{
-				Client:              k8sClient,
-				Scheme:              k8sClient.Scheme(),
-				RemoteSecretManager: remotesecret.NewFakeManager(k8sClient),
-				IstioCertManager:    cert.New(k8sClient),
+				Client:                         k8sClient,
+				Scheme:                         k8sClient.Scheme(),
+				RemoteSecretManager:            remotesecret.NewFakeManager(k8sClient),
+				IstioCertManager:               cert.New(k8sClient),
+				RemoteSecretPropagationManager: multicluster.New(k8sClient),
 			}
 
 			By(fmt.Sprintf("creating the %s namespace", istio.IstioSystemNamespace))
