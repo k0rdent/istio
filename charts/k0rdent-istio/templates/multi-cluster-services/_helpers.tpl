@@ -17,7 +17,7 @@ intermediateCAs:
     namespace: {{ `{{ .Cluster.metadata.namespace }}` }}
     certificate: false
     issuer: true
-  kcm-cluster:
+  management:
     certificate: false
     issuer: false
 global:
