@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
 	"istio.io/istio/istioctl/pkg/multicluster"
 	"istio.io/istio/operator/cmd/mesh"
 	"istio.io/istio/operator/pkg/component"
@@ -259,7 +260,8 @@ func getServerFromKubeconfig(client kube.CLIClient) (string, multicluster.Warnin
 }
 
 func GetRemoteSecretName(clusterName, namespace string) string {
-	return fmt.Sprintf("%s-%s-%s", remoteSecretPrefix, namespace, clusterName)
+	name := fmt.Sprintf("%s-%s", namespace, clusterName)
+	return utils.GetNameHash(remoteSecretPrefix, name)
 }
 
 func getServiceAccountSecret(client kube.CLIClient, opt multicluster.RemoteSecretOptions, ctx context.Context) (*v1.Secret, error) {

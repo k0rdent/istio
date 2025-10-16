@@ -66,8 +66,9 @@ var _ = AfterEach(func() {
 	By("Cleanup all objects")
 	objects := []client.Object{
 		&kcmv1beta1.ClusterDeployment{},
+		&kcmv1beta1.MultiClusterService{},
+		&corev1.ConfigMap{},
 		&corev1.Secret{},
-		&cmv1.Certificate{},
 	}
 	namespaces := []string{DefaultNamespace, ReleaseNamespace}
 	for _, obj := range objects {
