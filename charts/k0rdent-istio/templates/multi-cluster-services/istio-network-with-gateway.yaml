@@ -2,6 +2,12 @@
   {{- $common := include "istio.common.setup" . | fromJson -}}
   {{- $version := .Chart.Version | replace "." "-" -}}
   {{- $gatewayVersion := .Values.gateway.version | replace "." "-" -}}
+  
+  {{- $global := .Values.global | default dict }}
+  {{- $customRegistry := "" }}
+  {{- if and $global.registry (ne $global.registry "docker.io") }}
+    {{- $customRegistry = $global.registry }}
+  {{- end }}
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
@@ -13,11 +19,38 @@ spec:
       k0rdent.mirantis.com/istio-gateway: "true"
   serviceSpec:
     services:
+      - name: cert-manager
+        namespace: {{ .Release.Namespace }}
+        template: {{ index .Values "cert-manager" "template" }}
+        values: |
+          crds:
+            enabled: true
+        {{- with $customRegistry }}
+          image:
+            repository: {{ . }}/jetstack/cert-manager-controller
+          acmesolver:
+            image:
+              repository: {{ . }}/jetstack/cert-manager-acmesolver
+          cainjector:
+            image:
+              repository: {{ . }}/jetstack/cert-manager-cainjector
+          startupapicheck:
+            image:
+              repository: {{ . }}/jetstack/cert-manager-startupapicheck
+          webhook:
+            image:
+              repository: {{ . }}/jetstack/cert-manager-webhook
+        {{- end }}
+
       - name: k0rdent-istio
         namespace: {{ .Release.Namespace }}
         template: k0rdent-istio-{{ $version }}
+        dependsOn:
+          - name: cert-manager
+            namespace: {{ .Release.Namespace }}
         values: |
 {{ include "istio.service.values" (dict "customRegistry" $common.customRegistry) | indent 10 }}
+      
       - name: istio-gateway
         namespace: {{ .Release.Namespace }}
         template: k0rdent-istio-base-gateway-{{ $gatewayVersion }}
