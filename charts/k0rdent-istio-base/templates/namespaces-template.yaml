@@ -12,6 +12,8 @@ data:
     apiVersion: v1
     metadata:
       name: istio-system
+      annotations:
+        helm.sh/resource-policy: keep
       labels:
         topology.istio.io/network: {{ `{{ .Cluster.metadata.name }}` }}-network
     {{- range .Values.injectionNamespaces }}
