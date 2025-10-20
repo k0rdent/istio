@@ -39,3 +39,24 @@ cert-manager-istio-csr:
     server:
       clusterID: {{ `{{ .Cluster.metadata.name }}` }}
 {{- end -}}
+
+{{- define "cert-manager.service.values" -}}
+crds:
+  enabled: true
+{{- with .customRegistry }}
+image:
+  repository: {{ . }}/jetstack/cert-manager-controller
+acmesolver:
+  image:
+    repository: {{ . }}/jetstack/cert-manager-acmesolver
+cainjector:
+  image:
+    repository: {{ . }}/jetstack/cert-manager-cainjector
+startupapicheck:
+  image:
+    repository: {{ . }}/jetstack/cert-manager-startupapicheck
+webhook:
+  image:
+    repository: {{ . }}/jetstack/cert-manager-webhook
+{{- end }}
+{{- end -}}

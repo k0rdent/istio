@@ -14,9 +14,17 @@ spec:
         operator: DoesNotExist
   serviceSpec:
     services:
+      - name: cert-manager
+        namespace: {{ .Release.Namespace }}
+        template: {{ index .Values "cert-manager" "template" }}
+        values: |
+{{ include "cert-manager.service.values" (dict "customRegistry" $common.customRegistry) | indent 10 }}
       - name: k0rdent-istio
         namespace: {{ .Release.Namespace }}
         template: k0rdent-istio-{{ $version }}
+        dependsOn:
+          - name: cert-manager
+            namespace: {{ .Release.Namespace }}
         values: |
 {{ include "istio.service.values" (dict "customRegistry" $common.customRegistry) | indent 10 }}
 {{- end -}}
