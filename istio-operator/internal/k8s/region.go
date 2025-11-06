@@ -1,0 +1,79 @@
+package k8s
+
+import (
+	"context"
+	"fmt"
+
+	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
+	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// If a Kubeconfig secret exists in the management cluster, we assume the cluster is not in the region
+func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
+	secret := new(corev1.Secret)
+	namespacedName := types.NamespacedName{
+		Name:      GetSecretName(cd),
+		Namespace: DefaultKCMSystemNamespace,
+	}
+	err := client.Get(ctx, namespacedName, secret)
+	if errors.IsNotFound(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func GetKcmRegionClusterNameRelatedToClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (string, error) {
+	credList := new(crds.CredentialList)
+
+	if err := client.List(ctx, credList); err != nil {
+		return "", err
+	}
+
+	for _, cred := range credList.Items {
+		if cred.Name == cd.Spec.Credential {
+			return cred.Spec.Region, nil
+		}
+	}
+
+	return "", nil
+}
+
+func GetKubeconfigByRegionName(ctx context.Context, client client.Client, regionName string) ([]byte, error) {
+	if regionName == "" {
+		return nil, fmt.Errorf("region name is empty")
+	}
+
+	region := new(crds.Region)
+	if err := client.Get(ctx, types.NamespacedName{Name: regionName}, region); err != nil {
+		return nil, fmt.Errorf("failed to get Region %s: %v", regionName, err)
+	}
+
+	if region.Spec.ClusterDeployment != nil {
+		cd := new(kcmv1beta1.ClusterDeployment)
+		if err := client.Get(ctx, types.NamespacedName{
+			Name:      region.Spec.ClusterDeployment.Name,
+			Namespace: region.Spec.ClusterDeployment.Namespace,
+		}, cd); err != nil {
+			return nil, fmt.Errorf("failed to get ClusterDeployment %s: %v", region.Spec.ClusterDeployment.Name, err)
+		}
+
+		kubeconfig, err := GetKubeconfigFromClusterDeployment(ctx, client, cd)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get kubeconfig from ClusterDeployment: %v", err)
+		}
+		return kubeconfig, nil
+	}
+
+	if region.Spec.KubeConfig != nil {
+		return GetKubeconfigFromSecret(ctx, client, region.Spec.KubeConfig.Name)
+	}
+
+	return nil, nil
+}

@@ -9,6 +9,7 @@ import (
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	addoncontrollerv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,7 +57,7 @@ func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl
 
 	mcs := &kcmv1beta1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: GetMultiClusterServiceName(req.Name, req.Namespace),
+			Name: GetMultiClusterServiceNameHash(req.Name, req.Namespace),
 		},
 	}
 
@@ -76,47 +77,40 @@ func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl
 
 func (m *RemoteSecretPropagationManager) multiClusterServiceExists(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
 	mcs := &kcmv1beta1.MultiClusterService{}
-	mcsName := GetMultiClusterServiceName(cd.Name, cd.Namespace)
+	mcsName := GetMultiClusterServiceNameHash(cd.Name, cd.Namespace)
 	return utils.IsResourceExists(ctx, m.client, mcs, mcsName, "")
 }
 
 func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
-	mcs := &kcmv1beta1.MultiClusterService{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: GetMultiClusterServiceName(cd.Name, cd.Namespace),
-			Labels: map[string]string{
-				utils.ManagedByLabel: utils.ManagedByValue,
-				"cluster-name":       cd.Name,
-				"cluster-namespace":  cd.Namespace,
-			},
-		},
-		Spec: kcmv1beta1.MultiClusterServiceSpec{
-			ClusterSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					istio.IstioRoleLabel: "member",
-				},
-			},
-			ServiceSpec: kcmv1beta1.ServiceSpec{
-				Services: []kcmv1beta1.Service{
-					{
-						Name:      "istio-secret-propagation",
-						Namespace: istio.IstioSystemNamespace,
-						Template:  fmt.Sprintf("%s-base-propagation", istio.IstioReleaseName),
-					},
-				},
-				TemplateResourceRefs: []addoncontrollerv1beta1.TemplateResourceRef{
-					{
-						Identifier: "Secret",
-						Resource: corev1.ObjectReference{
-							APIVersion: "v1",
-							Kind:       "Secret",
-							Name:       remotesecret.GetRemoteSecretName(cd.Name, cd.Namespace),
-							Namespace:  istio.IstioSystemNamespace,
-						},
-					},
-				},
-			},
-		},
+	if err := m.createMcsToPropagateToIstioMembers(ctx, cd); err != nil {
+		return fmt.Errorf("failed to create MCS to propagate secrets to istio members: %v", err)
+	}
+
+	createdInKcmRegion, err := k8s.CreatedInKCMRegion(ctx, m.client, cd)
+	if err != nil {
+		return fmt.Errorf("failed to determine if cluster is created in KCM region: %v", err)
+	}
+
+	if !createdInKcmRegion {
+		return nil
+	}
+
+	if err := m.createMcsToPropagateToKcmRegion(ctx, cd); err != nil {
+		return fmt.Errorf("failed to create MCS to propagate secrets to KCM region: %v", err)
+	}
+
+	return nil
+}
+
+func (m *RemoteSecretPropagationManager) createMcsToPropagateToKcmRegion(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
+	name := utils.GetNameHash("remote-secret-region-propagation", GetMultiClusterServiceName(cd.Name, cd.Namespace))
+	mcs := m.getMcsBase(cd)
+	mcs.SetName(name)
+	mcs.Spec.ClusterSelector.MatchLabels["k0rdent.mirantis.com/kcm-region-cluster"] = "true"
+
+	if utils.IsInMesh(cd) {
+		// If cluster is in mesh, set selector to propagate only to clusters in same mesh
+		mcs.Spec.ClusterSelector.MatchLabels[utils.IstioMeshLabel] = cd.Labels[utils.IstioMeshLabel]
 	}
 
 	if err := m.client.Create(ctx, mcs); err != nil {
@@ -128,13 +122,76 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 	return nil
 }
 
+func (m *RemoteSecretPropagationManager) createMcsToPropagateToIstioMembers(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
+	mcs := m.getMcsBase(cd)
+
+	if utils.IsInMesh(cd) {
+		// If cluster is in mesh, set selector to propagate only to clusters in same mesh
+		mcs.Spec.ClusterSelector.MatchLabels[utils.IstioMeshLabel] = cd.Labels[utils.IstioMeshLabel]
+		mcs.Spec.ClusterSelector.MatchLabels[istio.IstioRoleLabel] = "member"
+	} else {
+		mcs.Spec.ClusterSelector.MatchExpressions = []metav1.LabelSelectorRequirement{
+			{
+				Key:      utils.IstioMeshLabel,
+				Operator: metav1.LabelSelectorOpDoesNotExist,
+			},
+		}
+	}
+
+	if err := m.client.Create(ctx, mcs); err != nil {
+		if errors.IsAlreadyExists(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func (m *RemoteSecretPropagationManager) getMcsBase(cd *kcmv1beta1.ClusterDeployment) *kcmv1beta1.MultiClusterService {
+	return &kcmv1beta1.MultiClusterService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: GetMultiClusterServiceNameHash(cd.Name, cd.Namespace),
+			Labels: map[string]string{
+				utils.ManagedByLabel: utils.ManagedByValue,
+				"cluster-name":       cd.Name,
+				"cluster-namespace":  cd.Namespace,
+			},
+		},
+		Spec: kcmv1beta1.MultiClusterServiceSpec{
+			ClusterSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{},
+			},
+			ServiceSpec: kcmv1beta1.ServiceSpec{
+				Services: []kcmv1beta1.Service{
+					{
+						Name:      "istio-secret-propagation",
+						Namespace: istio.IstioSystemNamespace,
+						Template:  fmt.Sprintf("%s-base-propagation", istio.IstioReleaseName),
+					},
+				},
+				TemplateResourceRefs: []addoncontrollerv1beta1.TemplateResourceRef{
+					{
+						Identifier: "Data",
+						Resource: corev1.ObjectReference{
+							APIVersion: "v1",
+							Kind:       "Secret",
+							Name:       remotesecret.GetRemoteSecretName(cd.Name, cd.Namespace),
+							Namespace:  istio.IstioSystemNamespace,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func (m *RemoteSecretPropagationManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
 	record.Eventf(
 		cd,
 		utils.GetEventsAnnotations(cd),
 		"MultiClusterServiceCreated",
 		"MultiClusterService '%s' for secret propagation is successfully created",
-		GetMultiClusterServiceName(cd.Name, cd.Namespace),
+		GetMultiClusterServiceNameHash(cd.Name, cd.Namespace),
 	)
 }
 
@@ -145,11 +202,15 @@ func (m *RemoteSecretPropagationManager) sendDeletionEvent(req ctrl.Request) {
 		nil,
 		"MultiClusterServiceDeleted",
 		"MultiClusterService '%s' for secret propagation is successfully deleted",
-		GetMultiClusterServiceName(req.Name, req.Namespace),
+		GetMultiClusterServiceNameHash(req.Name, req.Namespace),
 	)
 }
 
 func GetMultiClusterServiceName(clusterName, namespace string) string {
-	name := fmt.Sprintf("%s-%s", namespace, clusterName)
+	return fmt.Sprintf("%s-%s", namespace, clusterName)
+}
+
+func GetMultiClusterServiceNameHash(clusterName, namespace string) string {
+	name := GetMultiClusterServiceName(clusterName, namespace)
 	return utils.GetNameHash("remote-secret-propagation", name)
 }

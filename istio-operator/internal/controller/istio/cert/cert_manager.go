@@ -11,6 +11,8 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	addoncontrollerv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +35,19 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 	log.Info("Trying to create certificate")
 
 	cert := cm.generateClusterCACertificate(clusterDeployment)
-	return cm.createCertificate(ctx, cert, clusterDeployment)
+	if err := cm.createCertificate(ctx, cert, clusterDeployment); err != nil {
+		return fmt.Errorf("failed to create istio certificate: %v", err)
+	}
+
+	if !utils.IsInMesh(clusterDeployment) {
+		return nil
+	}
+
+	if err := cm.createCaMultiClusterService(ctx, clusterDeployment); err != nil {
+		return fmt.Errorf("failed to create MultiClusterService for certificate propagation: %v", err)
+	}
+
+	return nil
 }
 
 func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
@@ -51,7 +65,20 @@ func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 			log.Info("Istio Certificate already deleted", "certificateName", certName)
 			return nil
 		}
-		return err
+		return fmt.Errorf("failed to delete istio certificate")
+	}
+
+	log.Info("Trying to delete MultiClusterService for certificate propagation")
+	if err := cm.k8sClient.Delete(ctx, &kcmv1beta1.MultiClusterService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: GetCertNameHash(req.Name, req.Namespace),
+		},
+	}); err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("MultiClusterService for certificate propagation already deleted")
+			return nil
+		}
+		return fmt.Errorf("failed to delete MultiClusterService: %v", err)
 	}
 
 	log.Info("Istio Certificate successfully deleted", "certificateName", certName)
@@ -74,8 +101,8 @@ func (cm *CertManager) createCertificate(ctx context.Context, cert *cmv1.Certifi
 	return nil
 }
 
-func (cm *CertManager) generateClusterCACertificate(clusterDeployment *kcmv1beta1.ClusterDeployment) *cmv1.Certificate {
-	certName := GetCertName(clusterDeployment.Name, clusterDeployment.Namespace)
+func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeployment) *cmv1.Certificate {
+	certName := GetCertName(cd.Name, cd.Namespace)
 
 	return &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -87,7 +114,7 @@ func (cm *CertManager) generateClusterCACertificate(clusterDeployment *kcmv1beta
 		},
 		Spec: cmv1.CertificateSpec{
 			IsCA:       true,
-			CommonName: fmt.Sprintf("%s CA", clusterDeployment.Name),
+			CommonName: fmt.Sprintf("%s CA", cd.Name),
 			Subject: &cmv1.X509Subject{
 				Organizations: []string{"Istio"},
 			},
@@ -103,6 +130,57 @@ func (cm *CertManager) generateClusterCACertificate(clusterDeployment *kcmv1beta
 			},
 		},
 	}
+}
+
+// This function creates MultiClusterService to propagate CA certificate to KCM Region clusters with specific Mesh
+// TODO: Remove this function once KCM implements automatic copying of the required resources to region clusters.
+func (cm *CertManager) createCaMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
+	mcs := &kcmv1beta1.MultiClusterService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: GetCertNameHash(cd.Name, cd.Namespace),
+			Labels: map[string]string{
+				utils.ManagedByLabel: utils.ManagedByValue,
+				"cluster-name":       cd.Name,
+				"cluster-namespace":  cd.Namespace,
+			},
+		},
+		Spec: kcmv1beta1.MultiClusterServiceSpec{
+			ClusterSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"k0rdent.mirantis.com/kcm-region-cluster": "true",
+					utils.IstioMeshLabel:                      cd.Labels[utils.IstioMeshLabel],
+				},
+			},
+			ServiceSpec: kcmv1beta1.ServiceSpec{
+				Services: []kcmv1beta1.Service{
+					{
+						Name:      "istio-secret-propagation",
+						Namespace: istio.IstioSystemNamespace,
+						Template:  fmt.Sprintf("%s-base-propagation", istio.IstioReleaseName),
+					},
+				},
+				TemplateResourceRefs: []addoncontrollerv1beta1.TemplateResourceRef{
+					{
+						Identifier: "Data",
+						Resource: corev1.ObjectReference{
+							APIVersion: "v1",
+							Kind:       "Secret",
+							Name:       GetCertName(cd.Name, cd.Namespace),
+							Namespace:  istio.IstioSystemNamespace,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if err := cm.k8sClient.Create(ctx, mcs); err != nil {
+		if errors.IsAlreadyExists(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (cm *CertManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
@@ -128,4 +206,8 @@ func (cm *CertManager) sendDeletionEvent(req ctrl.Request) {
 
 func GetCertName(clusterName, namespace string) string {
 	return fmt.Sprintf("%s-%s-%s-ca", istio.IstioReleaseName, namespace, clusterName)
+}
+
+func GetCertNameHash(clusterName, namespace string) string {
+	return utils.GetNameHash("ca-cert-propagation", GetCertName(clusterName, namespace))
 }

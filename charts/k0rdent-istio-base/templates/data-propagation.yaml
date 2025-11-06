@@ -6,8 +6,8 @@ metadata:
   annotations:
     projectsveltos.io/template: "true"
 data:
-  secret.yaml: |
-    {{` {{ copy "Secret" }} `}}
+  data.yaml: |
+    {{` {{ copy "Data" }} `}}
 ---
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: ServiceTemplate

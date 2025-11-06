@@ -11,6 +11,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
+	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -93,11 +94,11 @@ var _ = Describe("ClusterDeployment Controller", func() {
 			Expect(k8sClient.Status().Update(ctx, clusterDeployment)).To(Succeed())
 		}
 
-		createSecret := func(secretName string) {
+		createSecret := func(secretName, namespace string) {
 			kubeconfigSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      secretName,
-					Namespace: DefaultNamespace,
+					Namespace: namespace,
 					Labels:    map[string]string{},
 				},
 				Data: map[string][]byte{"value": []byte("")},
@@ -137,7 +138,12 @@ var _ = Describe("ClusterDeployment Controller", func() {
 			)
 
 			By("creating the fake Secret for the cluster deployment kubeconfig")
-			createSecret(secretName)
+			createSecret(secretName, DefaultNamespace)
+
+			createSecret(
+				fmt.Sprintf("%s-%s", clusterDeploymentName, "kubeconfig"),
+				k8s.DefaultKCMSystemNamespace,
+			)
 		})
 
 		// Test cases

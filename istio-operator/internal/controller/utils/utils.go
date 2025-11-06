@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const IstioMeshLabel = "k0rdent.mirantis.com/istio-mesh"
 const ManagedByLabel = "app.kubernetes.io/managed-by"
 const ManagedByValue = "istio-operator"
 
@@ -127,4 +128,9 @@ func IsResourceExists(ctx context.Context, client client.Client, obj client.Obje
 		return false, err
 	}
 	return true, nil
+}
+
+func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
+	_, ok := cd.Labels[IstioMeshLabel]
+	return ok
 }

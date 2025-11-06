@@ -18,6 +18,7 @@ spec:
         template: {{ index .Values "cert-manager" "template" }}
         values: |
 {{ include "cert-manager.service.values" (dict "customRegistry" $common.customRegistry) | indent 10 }}
+
       - name: k0rdent-istio
         namespace: {{ .Release.Namespace }}
         template: k0rdent-istio-{{ $version }}
