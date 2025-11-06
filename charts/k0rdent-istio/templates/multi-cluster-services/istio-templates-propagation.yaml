@@ -1,0 +1,78 @@
+{{- if .Values.rootCA.enabled }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-namespaces-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: {{ .Release.Name }}-namespaces
+        namespace: {{ .Values.kcm.namespace }}
+        template: k0rdent-istio-base-namespaces
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-template-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: cm-copy
+        namespace: {{ $.Release.Namespace }}
+        template: {{ .Release.Name }}-base-propagation
+    templateResourceRefs:
+      - identifier: Data
+        resource:
+          apiVersion: v1
+          kind: ConfigMap
+          name: {{ .Release.Name }}-base-template
+          namespace: {{ .Values.kcm.namespace }}
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-base-namespaces-template-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: cm-copy
+        namespace: {{ $.Release.Namespace }}
+        template: {{ .Release.Name }}-base-propagation
+    templateResourceRefs:
+      - identifier: Data
+        resource:
+          apiVersion: v1
+          kind: ConfigMap
+          name: {{ .Release.Name }}-base-namespaces-template
+          namespace: {{ .Values.kcm.namespace }}
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-base-gateway-template-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: cm-copy
+        namespace: {{ $.Release.Namespace }}
+        template: {{ .Release.Name }}-base-propagation
+    templateResourceRefs:
+      - identifier: Data
+        resource:
+          apiVersion: v1
+          kind: ConfigMap
+          name: {{ .Release.Name }}-base-gateway-template
+          namespace: {{ .Values.kcm.namespace }}
+{{- end }}

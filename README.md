@@ -13,7 +13,7 @@ k0rdent Istio automates the setup of all key components required for a secure mu
 * **Self-signed Root CA** — deployed on the management cluster.
   See the [reference architecture](https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert/).
 * **Intermediate CA** — automatically generated for each Istio cluster (labeled with `k0rdent.mirantis.com/istio-role: member`) by the k0rdent-istio-operator.
-* **Remote secrets** — created for each Istio cluster by the k0rdent-istio-operator to enable cross-cluster trust.
+* **Remote secrets** — created for each Istio cluster by the k0rdent-istio-operator to enable cross-cluster endpoints discovery.
 * **Istio Gateway** — deployed in each cluster to provide secure inter-cluster communication protected by [mTLS](https://istio.io/latest/docs/tasks/security/authentication/authn-policy/#enable-mutual-tls-per-workload)
 
 This architecture ensures automatic mesh connectivity, consistent CA hierarchy, and secure cross-cluster communication without manual configuration.

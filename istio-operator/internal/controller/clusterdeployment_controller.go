@@ -134,7 +134,7 @@ func (r *ClusterDeploymentReconciler) tryDeleteResources(ctx context.Context, re
 			"Failed to delete MultiClusterService",
 			clusterDeployment,
 			err,
-			"multiClusterServiceName", multicluster.GetMultiClusterServiceName(req.Name, req.Namespace),
+			"multiClusterServiceName", multicluster.GetMultiClusterServiceNameHash(req.Name, req.Namespace),
 		)
 		return ctrl.Result{}, err
 	}
@@ -174,7 +174,7 @@ func (r *ClusterDeploymentReconciler) tryCreateResources(ctx context.Context, re
 			"Failed to create MultiClusterService",
 			clusterDeployment,
 			err,
-			"multiClusterServiceName", multicluster.GetMultiClusterServiceName(req.Name, req.Namespace),
+			"multiClusterServiceName", multicluster.GetMultiClusterServiceNameHash(req.Name, req.Namespace),
 		)
 		return ctrl.Result{}, err
 	}

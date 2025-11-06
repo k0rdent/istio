@@ -23,6 +23,8 @@ rules:
   resources:
   - clusterdeployments
   - multiclusterservices
+  - credentials
+  - regions
   verbs:
   - create
   - delete

@@ -29,6 +29,7 @@ require github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
+	istio.io/client-go v1.25.0-alpha.0.0.20250227171830-489349726dc9
 )
 
 require (
@@ -123,7 +124,6 @@ require (
 	golang.org/x/mod v0.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	istio.io/api v1.25.0-alpha.0.0.20250227144231-affcb4000ed2 // indirect
-	istio.io/client-go v1.25.0-alpha.0.0.20250227171830-489349726dc9 // indirect
 	k8s.io/cli-runtime v0.33.3 // indirect
 	k8s.io/component-helpers v0.33.3 // indirect
 	k8s.io/kubectl v0.33.3 // indirect
@@ -149,7 +149,7 @@ require (
 	github.com/fluxcd/helm-controller/api v1.3.0 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.11.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.18.0 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.18.0
 	github.com/fluxcd/source-controller/api v1.6.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect

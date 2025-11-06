@@ -26,6 +26,8 @@ import (
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
+	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
+	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -70,7 +72,8 @@ var _ = AfterEach(func() {
 		&corev1.ConfigMap{},
 		&corev1.Secret{},
 	}
-	namespaces := []string{DefaultNamespace, ReleaseNamespace}
+
+	namespaces := []string{DefaultNamespace, ReleaseNamespace, k8s.DefaultKCMSystemNamespace}
 	for _, obj := range objects {
 		for _, ns := range namespaces {
 			err := k8sClient.DeleteAllOf(ctx, obj, client.InNamespace(ns))
@@ -105,7 +108,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = kcmv1beta1.AddToScheme(scheme.Scheme)
+	// err = kcmv1beta1.AddToScheme(scheme.Scheme)
+	err = crds.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = cmv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
@@ -125,6 +129,12 @@ var _ = BeforeSuite(func() {
 		},
 	}
 	Expect(k8sClient.Create(ctx, releaseNamespace)).To(Succeed())
+	kcmDefaultNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: k8s.DefaultKCMSystemNamespace,
+		},
+	}
+	Expect(k8sClient.Create(ctx, kcmDefaultNamespace)).To(Succeed())
 	err = os.Setenv("RELEASE_NAME", ReleaseName)
 	Expect(err).NotTo(HaveOccurred())
 })
