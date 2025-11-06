@@ -44,12 +44,12 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 		return nil
 	}
 
-	isKcmRegionCluster, err := k8s.IsKCMRegionCluster(ctx, cm.k8sClient, clusterDeployment)
+	createdInKCMRegion, err := k8s.CreatedInKCMRegion(ctx, cm.k8sClient, clusterDeployment)
 	if err != nil {
-		return fmt.Errorf("failed to check if cluster is in KCM region: %v", err)
+		return fmt.Errorf("failed to determine cluster region: %v", err)
 	}
 
-	if !isKcmRegionCluster {
+	if !createdInKCMRegion {
 		return nil
 	}
 
@@ -158,7 +158,8 @@ func (cm *CertManager) createCaMultiClusterService(ctx context.Context, cd *kcmv
 		Spec: kcmv1beta1.MultiClusterServiceSpec{
 			ClusterSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					utils.IstioMeshLabel: cd.Labels[utils.IstioMeshLabel],
+					utils.IstioMeshLabel:                      cd.Labels[utils.IstioMeshLabel],
+					"k0rdent.mirantis.com/kcm-region-cluster": "true",
 				},
 			},
 			ServiceSpec: kcmv1beta1.ServiceSpec{
