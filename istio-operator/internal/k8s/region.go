@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
@@ -76,4 +77,38 @@ func GetKubeconfigByRegionName(ctx context.Context, client client.Client, region
 	}
 
 	return nil, nil
+}
+
+func IsKCMRegionCluster(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
+	regions := new(crds.RegionList)
+	if err := client.List(ctx, regions); err != nil {
+		return false, fmt.Errorf("failed to list Regions: %v", err)
+	}
+
+	for _, region := range regions.Items {
+		if region.Spec.ClusterDeployment != nil {
+			if region.Spec.ClusterDeployment.Name == cd.Name && region.Spec.ClusterDeployment.Namespace == cd.Namespace {
+				return true, nil
+			}
+			continue
+		}
+
+		if region.Spec.KubeConfig != nil {
+			var regionClusterName string
+
+			if clusterName, found := strings.CutSuffix(region.Spec.KubeConfig.Name, ClusterSecretSuffix); found {
+				regionClusterName = clusterName
+			}
+
+			if clusterName, found := strings.CutSuffix(region.Spec.KubeConfig.Name, AdoptedClusterSecretSuffix); found {
+				regionClusterName = clusterName
+			}
+
+			if regionClusterName != "" && regionClusterName == cd.Name {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }

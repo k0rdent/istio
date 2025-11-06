@@ -37,7 +37,7 @@ spec:
   resources:
     localSourceRef:
       kind: ConfigMap
-      name: {{ .Chart.Name }}-namespaces-template
+      name: {{ .Release.Name }}-namespaces-template
       namespace: {{ .Values.kcm.namespace }}
     deploymentType: Remote
     path: ""

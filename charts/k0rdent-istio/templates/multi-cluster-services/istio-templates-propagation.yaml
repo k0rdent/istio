@@ -25,13 +25,13 @@ spec:
     services:
       - name: cm-copy
         namespace: {{ $.Release.Namespace }}
-        template: k0rdent-istio-base-propagation
+        template: {{ .Release.Name }}-base-propagation
     templateResourceRefs:
       - identifier: Data
         resource:
           apiVersion: v1
           kind: ConfigMap
-          name: {{ $.Chart.Name }}-base-template
+          name: {{ .Release.Name }}-base-template
           namespace: {{ .Values.kcm.namespace }}
 ---
 apiVersion: k0rdent.mirantis.com/v1beta1
@@ -46,13 +46,13 @@ spec:
     services:
       - name: cm-copy
         namespace: {{ $.Release.Namespace }}
-        template: k0rdent-istio-base-propagation
+        template: {{ .Release.Name }}-base-propagation
     templateResourceRefs:
       - identifier: Data
         resource:
           apiVersion: v1
           kind: ConfigMap
-          name: {{ $.Chart.Name }}-base-namespaces-template
+          name: {{ .Release.Name }}-base-namespaces-template
           namespace: {{ .Values.kcm.namespace }}
 ---
 apiVersion: k0rdent.mirantis.com/v1beta1
@@ -67,12 +67,12 @@ spec:
     services:
       - name: cm-copy
         namespace: {{ $.Release.Namespace }}
-        template: k0rdent-istio-base-propagation
+        template: {{ .Release.Name }}-base-propagation
     templateResourceRefs:
       - identifier: Data
         resource:
           apiVersion: v1
           kind: ConfigMap
-          name: {{ $.Chart.Name }}-base-gateway-template
+          name: {{ .Release.Name }}-base-gateway-template
           namespace: {{ .Values.kcm.namespace }}
 {{- end }}

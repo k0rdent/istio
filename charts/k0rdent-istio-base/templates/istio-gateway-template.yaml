@@ -62,7 +62,7 @@ spec:
   resources:
     localSourceRef:
       kind: ConfigMap
-      name: {{ .Chart.Name }}-gateway-template
+      name: {{ .Release.Name }}-gateway-template
       namespace: {{ .Values.kcm.namespace }}
     deploymentType: Remote
     path: ""

@@ -11,6 +11,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	addoncontrollerv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,6 +44,16 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 		return nil
 	}
 
+	isKcmRegionCluster, err := k8s.IsKCMRegionCluster(ctx, cm.k8sClient, clusterDeployment)
+	if err != nil {
+		return fmt.Errorf("failed to check if cluster is in KCM region: %v", err)
+	}
+
+	if !isKcmRegionCluster {
+		return nil
+	}
+
+	log.Info("Trying to create MultiClusterService for certificate propagation to region clusters")
 	if err := cm.createCaMultiClusterService(ctx, clusterDeployment); err != nil {
 		return fmt.Errorf("failed to create MultiClusterService for certificate propagation: %v", err)
 	}
@@ -147,8 +158,7 @@ func (cm *CertManager) createCaMultiClusterService(ctx context.Context, cd *kcmv
 		Spec: kcmv1beta1.MultiClusterServiceSpec{
 			ClusterSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"k0rdent.mirantis.com/kcm-region-cluster": "true",
-					utils.IstioMeshLabel:                      cd.Labels[utils.IstioMeshLabel],
+					utils.IstioMeshLabel: cd.Labels[utils.IstioMeshLabel],
 				},
 			},
 			ServiceSpec: kcmv1beta1.ServiceSpec{
