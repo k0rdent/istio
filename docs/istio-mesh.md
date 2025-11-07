@@ -1,6 +1,6 @@
 # Istio Mesh
 
-`k0rdent.mirantis.com/istio-mesh` label isolates remote secret propagation across clusters. Without it, remote secrets are propagated to all clusters using the large default mesh.
+`k0rdent.mirantis.com/istio-mesh` label isolates remote secret propagation across clusters. It is a required label.
 
 ## How to Enable it
 
