@@ -40,6 +40,11 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 		return fmt.Errorf("failed to create istio certificate: %v", err)
 	}
 
+	if !utils.IsClusterDeploymentReady(clusterDeployment) {
+		log.Info("Cluster deployment is not ready")
+		return nil
+	}
+
 	if !utils.IsInMesh(clusterDeployment) {
 		return nil
 	}

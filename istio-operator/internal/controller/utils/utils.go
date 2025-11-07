@@ -134,3 +134,22 @@ func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
 	_, ok := cd.Labels[IstioMeshLabel]
 	return ok
 }
+
+// Function checks if the cluster deployment is in a ready state
+func IsClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
+	readiness := false
+
+	for _, condition := range *cd.GetConditions() {
+		if IsAdopted(cd) {
+			if condition.Type == kcmv1beta1.ReadyCondition {
+				readiness = true
+			}
+		} else {
+			if condition.Type == kcmv1beta1.CAPIClusterSummaryCondition {
+				readiness = true
+			}
+		}
+	}
+
+	return readiness
+}

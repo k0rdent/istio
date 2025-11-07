@@ -60,7 +60,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 	log := log.FromContext(ctx)
 	log.Info("Trying to create remote secret")
 
-	if !rs.isClusterDeploymentReady(clusterDeployment) {
+	if !utils.IsClusterDeploymentReady(clusterDeployment) {
 		log.Info("Cluster deployment is not ready")
 		return nil
 	}
@@ -125,25 +125,6 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 	rs.sendCreationEvent(clusterDeployment)
 	log.Info("Remote secret successfully created")
 	return nil
-}
-
-// Function checks if the cluster deployment is in a ready state
-func (rs *RemoteSecretManager) isClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
-	readiness := false
-
-	for _, condition := range *cd.GetConditions() {
-		if utils.IsAdopted(cd) {
-			if condition.Type == kcmv1beta1.ReadyCondition {
-				readiness = true
-			}
-		} else {
-			if condition.Type == kcmv1beta1.CAPIClusterSummaryCondition {
-				readiness = true
-			}
-		}
-	}
-
-	return readiness
 }
 
 func (rs *RemoteSecretManager) remoteSecretExists(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
