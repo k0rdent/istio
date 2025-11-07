@@ -134,3 +134,24 @@ func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
 	_, ok := cd.Labels[IstioMeshLabel]
 	return ok
 }
+
+// IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.
+// Due to a bug in KCM or its upstream dependency, where some conditions are always false,
+// we cannot rely solely on the Ready condition.
+// Instead, we check if a CAPIClusterSummaryCondition exists in the conditions list
+// to determine if a kubeconfig has been created for the cluster.
+func IsClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
+	for _, condition := range *cd.GetConditions() {
+		if IsAdopted(cd) {
+			if condition.Type == kcmv1beta1.ReadyCondition {
+				return true
+			}
+		} else {
+			if condition.Type == kcmv1beta1.CAPIClusterSummaryCondition {
+				return true
+			}
+		}
+	}
+
+	return false
+}
