@@ -41,8 +41,7 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 	}
 
 	if !utils.IsClusterDeploymentReady(clusterDeployment) {
-		log.Info("Cluster deployment is not ready")
-		return nil
+		return fmt.Errorf("cluster deployment not ready")
 	}
 
 	if !utils.IsInMesh(clusterDeployment) {
