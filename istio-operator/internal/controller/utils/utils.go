@@ -135,7 +135,11 @@ func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
 	return ok
 }
 
-// Function checks if the cluster deployment is in a ready state
+// IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.
+// Due to a bug in KCM or its upstream dependency, where some conditions are always false,
+// we cannot rely solely on the Ready condition.
+// Instead, we check if a CAPIClusterSummaryCondition exists in the conditions list
+// to determine if a kubeconfig has been created for the cluster.
 func IsClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
 	readiness := false
 
