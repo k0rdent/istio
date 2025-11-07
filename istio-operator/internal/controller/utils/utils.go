@@ -141,19 +141,17 @@ func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
 // Instead, we check if a CAPIClusterSummaryCondition exists in the conditions list
 // to determine if a kubeconfig has been created for the cluster.
 func IsClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
-	readiness := false
-
 	for _, condition := range *cd.GetConditions() {
 		if IsAdopted(cd) {
 			if condition.Type == kcmv1beta1.ReadyCondition {
-				readiness = true
+				return true
 			}
 		} else {
 			if condition.Type == kcmv1beta1.CAPIClusterSummaryCondition {
-				readiness = true
+				return true
 			}
 		}
 	}
 
-	return readiness
+	return false
 }
