@@ -1,46 +1,103 @@
-cert-manager:
-  enabled: true
-  template: cert-manager-v1-16-4
-gateway:
-  version: 1.25.5
 kcm:
+  # -- K8s namespace created on installation of k0rdent/kcm.
   namespace: kcm-system
+
+# -- Enable management mode for this deployment
+isManagement: true
+
+cert-manager:
+  # -- Whether cert-manager is present in the cluster
+  template: cert-manager-v1-16-4
+
+global:
+  # -- Address of the Istio CSR service provided by cert-manager
+  caAddress: cert-manager-istio-csr.istio-system.svc:443
+
+  # -- Unique mesh ID shared across clusters in the same mesh
+  meshID: main
+
+  # -- Enables use of an external Istiod control plane
+  externalIstiod: true
+
+  multiCluster:
+    # -- Name of this cluster within the multi-cluster mesh
+    clusterName: management
+
+  # -- Logical network name for this cluster (used by Istio for multi-network setups)
+  network: management-network
+
+  meshConfig:
+    # -- Path where Envoy access logs will be written
+    accessLogFile: /dev/stdout
+
+gateway:
+  # -- Version of Istio Gateway to deploy
+  version: 1.25.5
+
+  # -- Gateway resource configuration to be deployed
+  resource:
+    apiVersion: networking.istio.io/v1
+    kind: Gateway
+    metadata:
+      name: network-gateway
+      namespace: istio-system
+    spec:
+      selector:
+        istio: eastwestgateway
+      servers:
+        - port:
+            number: 15443
+            name: tls
+            protocol: TLS
+          tls:
+            mode: AUTO_PASSTHROUGH
+          hosts:
+            - "*.local"
+
 telemetry:
+  # -- Enable Istio telemetry with OpenTelemetry tracing
   enabled: true
+  # -- Percentage of requests to sample for tracing (0–100)
   traces_sampling_percentage: 100
+
 rootCA:
+  # -- Enable creation of the root certificate authority
   enabled: true
+
 intermediateCAs:
   management:
+    # -- Namespace where the management intermediate CA will be created
     namespace: kcm-system
+
+    # -- Whether to issue an intermediate CA certificate
     certificate: true
+
+    # -- Whether to create an Issuer resource for this intermediate CA
     issuer: true
-global:
-  caAddress: cert-manager-istio-csr.istio-system.svc:443
-  meshID: main
-  externalIstiod: true
-  multiCluster:
-    clusterName: management
-  network: management-network
-  meshConfig:
-    accessLogFile: /dev/stdout
+
 cert-manager-istio-csr:
   app:
     tls:
+      # -- DNS names for the cert-manager Istio CSR service
       certificateDNSNames:
         - cert-manager-istio-csr.istio-system.svc
     certmanager:
       issuer:
+        # -- Reference to the cert-manager Issuer for Istio certificates
         name: k0rdent-istio-kcm-system-management-ca
         kind: Issuer
         group: cert-manager.io
     server:
+      # -- Cluster ID used by the cert-manager Istio CSR server
       clusterID: management
+
 istiod:
+  # -- Mount and reference cert-manager issued TLS and CA certificates
   extraContainerArgs:
     - --tlsCertFile=/etc/cert-manager/tls/tls.crt
     - --tlsKeyFile=/etc/cert-manager/tls/tls.key
     - --caCertFile=/etc/cert-manager/ca/root-cert.pem
+
   volumeMounts:
     - mountPath: /etc/cert-manager/tls
       name: cert-manager
@@ -59,31 +116,76 @@ istiod:
         name: istio-ca-root-cert
         optional: true
   meshConfig:
+    # -- Enables tracing collection inside the Istio mesh
     enableTracing: true
+
+    # -- Custom extension providers for telemetry (empty by default)
     extensionProviders: []
     defaultConfig:
       proxyMetadata:
+        # -- Enables DNS capture for Istio sidecar proxies
         ISTIO_META_DNS_CAPTURE: "true"
+
   env:
+    # -- Disables Istiod CA server when external cert-manager CA is used
     ENABLE_CA_SERVER: false
+
 operator:
+  # -- Enables the `istio-operator`.
   enabled: true
+
+  # -- Number of the `istio-operator` deployment replicas.
   replicaCount: 1
+
   rbac:
+    # -- Creates the `k0rdent-istio-operator` cluster role
+    # and binds it to the service account of operator.
     create: true
+
+  # -- Image of the kof operator.
   image:
     registry: ghcr.io/k0rdent
     repository: istio/istio-operator-controller
     pullPolicy: IfNotPresent
+
   resources:
+    # -- Minimum resources required for operator.
     requests:
       cpu: 100m
       memory: 128Mi
+
+    # -- Maximum resources available for operator.
     limits:
       cpu: 100m
       memory: 128Mi
+
   serviceAccount:
+    # -- Creates a service account for operator.
     create: true
+    
+    # -- Annotations for the service account of operator.
     annotations: {}
+    
+    # -- Name for the service account of operator.
+    # If not set, it is generated as `k0rdent-istio-operator`.
     name: ""
 
+k0rdent-istio:
+  # -- Repo of `istio-*` helm charts.
+  repo:
+    name: istio-registry
+    spec:
+      type: oci
+      url: oci://ghcr.io/k0rdent/istio/charts
+
+# -- List of namespaces on remote clusters where Istio sidecar injection should be enabled
+injectionNamespaces: []
+
+# -- Config of `ServiceTemplate` to use `cert-manager` in `MultiClusterService`.
+cert-manager-service-template:
+  enabled: true
+  repo:
+    name: cert-manager
+    url: https://charts.jetstack.io
+  chart: cert-manager:v1.16.4
+  namespace: kcm-system

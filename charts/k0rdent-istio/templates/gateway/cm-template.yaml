@@ -1,0 +1,12 @@
+{{- if .Values.isManagement }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-gateway-template
+  namespace: {{ .Values.kcm.namespace }}
+  annotations:
+    projectsveltos.io/template: "true"
+data:
+  gateway.yaml: |
+{{ .Values.gateway.resource | toYaml | indent 4 }}
+{{- end }}

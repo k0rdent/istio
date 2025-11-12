@@ -101,7 +101,7 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 					{
 						Name:      "istio-secret-propagation",
 						Namespace: istio.IstioSystemNamespace,
-						Template:  fmt.Sprintf("%s-base-propagation", istio.IstioReleaseName),
+						Template:  fmt.Sprintf("%s-propagation", istio.IstioReleaseName),
 					},
 				},
 				TemplateResourceRefs: []addoncontrollerv1beta1.TemplateResourceRef{

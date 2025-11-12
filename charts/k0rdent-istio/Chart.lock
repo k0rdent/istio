@@ -8,5 +8,8 @@ dependencies:
 - name: istiod
   repository: https://istio-release.storage.googleapis.com/charts
   version: 1.25.3
-digest: sha256:9a0828640e706cd12d0016933405b1e428c1f62539b37ef2fdf8056e94002b88
-generated: "2025-10-25T13:43:14.007184+03:00"
+- name: kgst
+  repository: oci://ghcr.io/k0rdent/catalog/charts
+  version: 1.2.0
+digest: sha256:1bae066773b0a018c329fd951c16f69899c59245173c7ff0b5860ff2047ad5c2
+generated: "2025-11-12T12:14:25.640371+02:00"

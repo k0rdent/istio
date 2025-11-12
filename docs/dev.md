@@ -26,13 +26,7 @@ Follow the [KCM development guide](https://github.com/k0rdent/kcm/blob/main/docs
   make helm-push
   ```
 
-3. Deploy the service templates required by the `k0rdent-istio` chart:
-
-  ```bash
-  make dev-istio-base-deploy
-  ```
-
-4. Deploy the `k0rdent-istio` chart to your local management cluster:
+3. Deploy the `k0rdent-istio` chart to your local management cluster:
 
   ```bash
   make dev-istio-deploy
@@ -97,7 +91,6 @@ To completely remove Istio from the cluster, run the following commands:
 
 ```bash
 helm uninstall --wait -n istio-system k0rdent-istio
-helm uninstall --wait -n istio-system k0rdent-istio-base
 kubectl delete namespace istio-system --wait
 kubectl get crd -o name | grep --color=never 'istio.io' | xargs kubectl delete
 ```

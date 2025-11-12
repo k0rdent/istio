@@ -1,0 +1,37 @@
+{{- if .Values.isManagement }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Chart.Name }}-namespaces
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/istio-role: member
+  serviceSpec:
+    services:
+      - name: {{ .Chart.Name }}-namespaces
+        namespace: {{ .Values.kcm.namespace }}
+        template: {{ .Chart.Name }}-namespaces
+---
+# This MCS needed as a workaround to propagate namespaces to KCM Region clusters
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Chart.Name }}-namespaces-template-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: propagation-service
+        namespace: {{ $.Release.Namespace }}
+        template: {{ .Chart.Name }}-propagation
+    templateResourceRefs:
+      - identifier: Data
+        resource:
+          apiVersion: v1
+          kind: ConfigMap
+          name: {{ .Chart.Name }}-namespaces-template
+          namespace: {{ .Values.kcm.namespace }}
+{{- end }}

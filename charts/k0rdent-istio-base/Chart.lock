@@ -1,6 +1,0 @@
-dependencies:
-- name: kgst
-  repository: oci://ghcr.io/k0rdent/catalog/charts
-  version: 1.2.0
-digest: sha256:c95705b79078b96af48f41a1a037a08e9038013923e08bd710ee0295a6749844
-generated: "2025-10-09T11:43:39.733378+03:00"

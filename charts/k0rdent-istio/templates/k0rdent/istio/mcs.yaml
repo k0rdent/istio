@@ -1,0 +1,55 @@
+{{- if .Values.isManagement }}
+  {{- $global := .Values.global | default dict }}
+  {{- $customRegistry := "" }}
+  {{- if and $global.registry (ne $global.registry "docker.io") }}
+    {{- $customRegistry = $global.registry }}
+  {{- end }}
+  {{- $version := .Chart.Version | replace "." "-" }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Chart.Name }}-network
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/istio-role: member
+  dependsOn:
+    - {{ .Chart.Name }}-cert-manager
+  serviceSpec:
+    services:
+      - name: k0rdent-istio
+        namespace: {{ .Release.Namespace }}
+        template: {{ .Chart.Name }}-{{ $version }}
+        values: |
+          operator:
+            enabled: false
+          rootCA:
+            enabled: false
+          isManagement: false
+          intermediateCAs:
+            {{ `{{ .Cluster.metadata.name }}` }}:
+              namespace: {{ `{{ .Cluster.metadata.namespace }}` }}
+              certificate: false
+              issuer: true
+            management:
+              certificate: false
+              issuer: false
+          global:
+          {{- with .customRegistry }}
+            hub: {{ . }}/istio
+          {{- end }}
+            multiCluster:
+              clusterName: {{ `{{ .Cluster.metadata.name }}` }}
+            network: {{ `{{ .Cluster.metadata.name }}` }}-network
+          cert-manager-istio-csr:
+          {{- with .customRegistry }}
+            image:
+              repository: {{ . }}/jetstack/cert-manager-istio-csr
+          {{- end }}
+            app:
+              certmanager:
+                issuer:
+                  name: k0rdent-istio-{{ `{{ .Cluster.metadata.namespace }}` }}-{{ `{{ .Cluster.metadata.name }}` }}-ca
+              server:
+                clusterID: {{ `{{ .Cluster.metadata.name }}` }}
+{{- end }}
