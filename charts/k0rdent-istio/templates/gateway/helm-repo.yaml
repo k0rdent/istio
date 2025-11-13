@@ -10,7 +10,7 @@ metadata:
 spec:
   interval: 10m
   {{- with $global.helmChartsRepo }}
-  url: {{ $global.helmChartsRepo }}
+  url: {{ . }}
   {{- else }}
   url: https://istio-release.storage.googleapis.com/charts
   {{- end }}

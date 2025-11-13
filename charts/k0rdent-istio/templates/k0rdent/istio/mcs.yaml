@@ -15,6 +15,7 @@ spec:
       k0rdent.mirantis.com/istio-role: member
   dependsOn:
     - {{ .Chart.Name }}-cert-manager
+    - {{ .Chart.Name }}-namespaces
   serviceSpec:
     services:
       - name: k0rdent-istio
@@ -41,6 +42,8 @@ spec:
             multiCluster:
               clusterName: {{ `{{ .Cluster.metadata.name }}` }}
             network: {{ `{{ .Cluster.metadata.name }}` }}-network
+          cert-manager-service-template:
+            enabled: false
           cert-manager-istio-csr:
           {{- with .customRegistry }}
             image:
