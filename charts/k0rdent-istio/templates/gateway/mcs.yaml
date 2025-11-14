@@ -1,0 +1,51 @@
+{{- if .Values.isManagement }}
+{{- $version := .Values.gateway.version | replace "." "-" }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Chart.Name }}-gateway
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/istio-gateway: "true"
+  dependsOn:
+    - {{ .Chart.Name }}-network
+  serviceSpec:
+    services:
+      - name: istio-gateway
+        namespace: {{ .Release.Namespace }}
+        template: {{ .Chart.Name }}-gateway-{{ $version }}
+        values: |
+          networkGateway: {{ `{{ .Cluster.metadata.name }}` }}-network
+          labels:
+            istio: eastwestgateway
+
+      - name: gateway-template
+        namespace: {{ .Release.Namespace }}
+        template: {{ .Chart.Name }}-gateway-template
+        dependsOn:
+          - name: istio-gateway
+            namespace: {{ .Release.Namespace }}
+---
+# This MCS needed as a workaround to propagate gateway-template to KCM Region clusters
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Chart.Name }}-gateway-template-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: propagation-service
+        namespace: {{ $.Release.Namespace }}
+        template: {{ .Chart.Name }}-propagation
+    templateResourceRefs:
+      - identifier: Data
+        resource:
+          apiVersion: v1
+          kind: ConfigMap
+          name: {{ .Chart.Name }}-gateway-template
+          namespace: {{ .Values.kcm.namespace }}
+{{- end }}

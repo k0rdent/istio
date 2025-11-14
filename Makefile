@@ -94,16 +94,11 @@ helm-push: helm-package
 
 .PHONY: dev-istio-deploy
 dev-istio-deploy: dev istio-operator-docker-build ## Deploy k0rdent-istio helm chart to the K8s cluster specified in ~/.kube/config
-	cp -f $(TEMPLATES_DIR)/k0rdent-istio/values.yaml dev/istio-values.yaml
-	@$(YQ) eval -i '.operator.image.registry = "docker.io/library"' dev/istio-values.yaml # See `load docker-image`
-	@$(YQ) eval -i '.operator.image.repository = "istio-operator-controller"' dev/istio-values.yaml
-	$(HELM_UPGRADE) --create-namespace -n istio-system k0rdent-istio ./charts/k0rdent-istio -f dev/istio-values.yaml
-
-.PHONY: dev-istio-base-deploy
-dev-istio-base-deploy:
-	cp -f $(TEMPLATES_DIR)/k0rdent-istio-base/values.yaml dev/k0rdent-istio-base-values.yaml
-	@$(call set_local_registry, "dev/k0rdent-istio-base-values.yaml")
-	$(HELM_UPGRADE) --create-namespace -n istio-system k0rdent-istio-base ./charts/k0rdent-istio-base -f dev/k0rdent-istio-base-values.yaml
+	cp -f $(TEMPLATES_DIR)/k0rdent-istio/values.yaml dev/k0rdent-istio-values.yaml
+	@$(call set_local_registry, "dev/k0rdent-istio-values.yaml")
+	@$(YQ) eval -i '.operator.image.registry = "docker.io/library"' dev/k0rdent-istio-values.yaml # See `load docker-image`
+	@$(YQ) eval -i '.operator.image.repository = "istio-operator-controller"' dev/k0rdent-istio-values.yaml
+	$(HELM_UPGRADE) --create-namespace -n istio-system k0rdent-istio ./charts/k0rdent-istio -f dev/k0rdent-istio-values.yaml
 
 .PHONY: istio-operator-docker-build
 istio-operator-docker-build: ## Build istio-operator controller docker image

@@ -1,0 +1,17 @@
+{{- if .Values.isManagement }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplate
+metadata:
+  name: {{ .Chart.Name }}-namespaces
+  namespace: {{ .Values.kcm.namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  resources:
+    localSourceRef:
+      kind: ConfigMap
+      name: {{ .Chart.Name }}-namespaces-template
+      namespace: {{ .Values.kcm.namespace }}
+    deploymentType: Remote
+    path: ""
+{{- end }}

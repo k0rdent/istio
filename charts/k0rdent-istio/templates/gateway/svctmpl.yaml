@@ -1,0 +1,33 @@
+{{- if .Values.isManagement }}
+{{- $version := .Values.gateway.version | replace "." "-" }}
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplate
+metadata:
+  name: {{ .Chart.Name }}-gateway-{{ $version }}
+  namespace: {{ .Values.kcm.namespace }}
+spec:
+  helm:
+    chartSpec:
+      chart: gateway
+      version: {{ .Values.gateway.version }}
+      interval: 10m0s
+      sourceRef:
+        kind: HelmRepository
+        name: istio
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplate
+metadata:
+  name: {{ .Chart.Name }}-gateway-template
+  namespace: {{ .Values.kcm.namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  resources:
+    localSourceRef:
+      kind: ConfigMap
+      name: {{ .Chart.Name }}-gateway-template
+      namespace: {{ .Values.kcm.namespace }}
+    deploymentType: Remote
+    path: ""
+{{- end }}

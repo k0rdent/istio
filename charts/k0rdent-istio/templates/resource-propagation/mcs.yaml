@@ -1,0 +1,23 @@
+{{- if .Values.isManagement }}
+# This MCS needed as a workaround to propagate propagation-template to KCM Region clusters
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: MultiClusterService
+metadata:
+  name: {{ .Release.Name }}-copy-template-propagation
+spec:
+  clusterSelector:
+    matchLabels:
+      k0rdent.mirantis.com/kcm-region-cluster: "true"
+  serviceSpec:
+    services:
+      - name: propagation-service
+        namespace: {{ $.Release.Namespace }}
+        template: {{ .Release.Name }}-propagation
+    templateResourceRefs:
+      - identifier: Data
+        resource:
+          apiVersion: v1
+          kind: ConfigMap
+          name: {{ .Release.Name }}-propagation-template
+          namespace: {{ .Values.kcm.namespace }}
+{{- end }}

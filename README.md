@@ -20,10 +20,6 @@ This architecture ensures automatic mesh connectivity, consistent CA hierarchy, 
 
 ## Charts Overview
 
-k0rdent Istio consists of two Helm charts that together enable automatic mesh creation and management:
-
-* k0rdent-istio-base — provides the foundational templates for the multi-cluster system and should be installed only on a management cluster.
-
 * k0rdent-istio — deploys the full Istio system and manages mesh connectivity. It can be installed on both management and remote clusters and is automatically applied by the MultiClusterService to any cluster labeled `k0rdent.mirantis.com/istio-role: member`.
 
 ## CONTRIBUTION

@@ -1,7 +1,8 @@
+{{- if .Values.isManagement }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-namespaces-template
+  name: {{ .Chart.Name }}-namespaces-template
   namespace: {{ .Values.kcm.namespace }}
   annotations:
     projectsveltos.io/template: "true"
@@ -25,19 +26,4 @@ data:
       labels:
         istio-injection: enabled
     {{- end }}
----
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: ServiceTemplate
-metadata:
-  name: {{ .Release.Name }}-namespaces
-  namespace: {{ .Values.kcm.namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  resources:
-    localSourceRef:
-      kind: ConfigMap
-      name: {{ .Release.Name }}-namespaces-template
-      namespace: {{ .Values.kcm.namespace }}
-    deploymentType: Remote
-    path: ""
+{{- end }}

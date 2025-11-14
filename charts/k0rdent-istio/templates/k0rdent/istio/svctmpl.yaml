@@ -1,28 +1,19 @@
+{{- if .Values.isManagement }}
 {{- $version := .Chart.Version | replace "." "-" }}
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: {{ index .Values "k0rdent-istio" "repo" "name" }}
-  namespace: {{ .Values.kcm.namespace }}
-  labels:
-    k0rdent.mirantis.com/managed: "true"
-spec:
-  {{- (index .Values "k0rdent-istio").repo.spec | toYaml | nindent 2 }}
----
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: ServiceTemplate
 metadata:
-  name: k0rdent-istio-{{ $version }}
+  name: {{ .Chart.Name }}-{{ $version }}
   namespace: {{ .Values.kcm.namespace }}
   annotations:
     helm.sh/resource-policy: keep
 spec:
   helm:
     chartSpec:
-      chart: k0rdent-istio
+      chart: {{ .Chart.Name }}
       version: {{ $.Chart.Version | quote }}
       interval: 10m0s
       sourceRef:
         kind: HelmRepository
         name: {{ index .Values "k0rdent-istio" "repo" "name" }}
-
+{{- end }}
