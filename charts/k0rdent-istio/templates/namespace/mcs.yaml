@@ -2,22 +2,22 @@
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
-  name: {{ .Chart.Name }}-namespaces
+  name: {{ .Chart.Name }}-namespace
 spec:
   clusterSelector:
     matchLabels:
       k0rdent.mirantis.com/istio-role: member
   serviceSpec:
     services:
-      - name: {{ .Chart.Name }}-namespaces
+      - name: {{ .Chart.Name }}-namespace
         namespace: {{ .Values.kcm.namespace }}
-        template: {{ .Chart.Name }}-namespaces
+        template: {{ .Chart.Name }}-namespace
 ---
-# This MCS needed as a workaround to propagate namespaces to KCM Region clusters
+# This MCS needed as a workaround to propagate istio namespace to KCM Region clusters
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
-  name: {{ .Chart.Name }}-namespaces-template-propagation
+  name: {{ .Chart.Name }}-namespace-template-propagation
 spec:
   clusterSelector:
     matchLabels:
@@ -32,6 +32,6 @@ spec:
         resource:
           apiVersion: v1
           kind: ConfigMap
-          name: {{ .Chart.Name }}-namespaces-template
+          name: {{ .Chart.Name }}-namespace-template
           namespace: {{ .Values.kcm.namespace }}
 {{- end }}

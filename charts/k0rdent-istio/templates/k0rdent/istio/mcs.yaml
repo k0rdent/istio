@@ -15,7 +15,7 @@ spec:
       k0rdent.mirantis.com/istio-role: member
   dependsOn:
     - {{ .Chart.Name }}-cert-manager
-    - {{ .Chart.Name }}-namespaces
+    - {{ .Chart.Name }}-namespace
   serviceSpec:
     services:
       - name: k0rdent-istio
