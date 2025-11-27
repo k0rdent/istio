@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Chart.Name }}-namespaces-template
+  name: {{ .Chart.Name }}-namespace-template
   namespace: {{ .Values.kcm.namespace }}
   annotations:
     projectsveltos.io/template: "true"
@@ -17,13 +17,4 @@ data:
         helm.sh/resource-policy: keep
       labels:
         topology.istio.io/network: {{ `{{ .Cluster.metadata.name }}` }}-network
-    {{- range .Values.injectionNamespaces }}
-    ---
-    kind: Namespace
-    apiVersion: v1
-    metadata:
-      name: {{ . }}
-      labels:
-        istio-injection: enabled
-    {{- end }}
 {{- end }}
