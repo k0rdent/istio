@@ -7,6 +7,15 @@ metadata:
   namespace: {{ .Values.kcm.namespace }}
   labels:
     k0rdent.mirantis.com/managed: "true"
+# NOTE: The 'spec' field must include all required authentication fields.
+# If authentication is needed, ensure 'secretRef' and/or 'certSecretRef' are present and correctly formatted.
+# Example:
+# spec:
+#   url: https://example.com/charts
+#   secretRef:
+#     name: my-helm-repo-secret
+#   certSecretRef:
+#     name: my-helm-repo-cert
 spec:
   {{- $repoSpec | toYaml | nindent 2 }}
 {{- end }}
