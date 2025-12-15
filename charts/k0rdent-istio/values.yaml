@@ -170,7 +170,7 @@ operator:
     # If not set, it is generated as `k0rdent-istio-operator`.
     name: ""
 
-istio-repo:
+istio:
   # -- Repo of upstream Istio helm charts (for gateway, etc.).
   repo:
     name: istio

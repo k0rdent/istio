@@ -13,7 +13,7 @@ spec:
       interval: 10m0s
       sourceRef:
         kind: HelmRepository
-        name: {{ (index .Values "istio-repo").repo.name }}
+        name: {{ .Values.istio.repo.name }}
 ---
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: ServiceTemplate
