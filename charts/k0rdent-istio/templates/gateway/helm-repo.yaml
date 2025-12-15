@@ -1,27 +1,12 @@
 {{- if .Values.isManagement }}
-{{- $global := .Values.global | default dict }}
+{{- $repoSpec := (index .Values "istio-repo").repo.spec }}
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
-  name: istio
+  name: {{ (index .Values "istio-repo").repo.name }}
   namespace: {{ .Values.kcm.namespace }}
   labels:
     k0rdent.mirantis.com/managed: "true"
 spec:
-  interval: 10m
-  {{- with $global.helmChartsRepo }}
-  url: {{ . }}
-  {{- else }}
-  url: https://istio-release.storage.googleapis.com/charts
-  {{- end }}
-  {{- with $global.helmRepoCreds | default (index .Values "k0rdent-istio").repo.spec }}
-  {{- if .secretRef }}
-  secretRef:
-    {{- .secretRef | toYaml | nindent 4 }}
-  {{- end }}
-  {{- if .certSecretRef }}
-  certSecretRef:
-    {{- .certSecretRef | toYaml | nindent 4 }}
-  {{- end }}
-  {{- end }}
+  {{- $repoSpec | toYaml | nindent 2 }}
 {{- end }}
