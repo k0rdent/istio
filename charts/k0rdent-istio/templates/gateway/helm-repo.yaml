@@ -1,27 +1,21 @@
 {{- if .Values.isManagement }}
-{{- $global := .Values.global | default dict }}
+{{- $repoSpec := .Values.istio.repo.spec }}
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
-  name: istio
+  name: {{ .Values.istio.repo.name }}
   namespace: {{ .Values.kcm.namespace }}
   labels:
     k0rdent.mirantis.com/managed: "true"
+# NOTE: The 'spec' field must include all required authentication fields.
+# If authentication is needed, ensure 'secretRef' and/or 'certSecretRef' are present and correctly formatted.
+# Example:
+# spec:
+#   url: https://example.com/charts
+#   secretRef:
+#     name: my-helm-repo-secret
+#   certSecretRef:
+#     name: my-helm-repo-cert
 spec:
-  interval: 10m
-  {{- with $global.helmChartsRepo }}
-  url: {{ . }}
-  {{- else }}
-  url: https://istio-release.storage.googleapis.com/charts
-  {{- end }}
-  {{- with $global.helmRepoCreds | default (index .Values "k0rdent-istio").repo.spec }}
-  {{- if .secretRef }}
-  secretRef:
-    {{- .secretRef | toYaml | nindent 4 }}
-  {{- end }}
-  {{- if .certSecretRef }}
-  certSecretRef:
-    {{- .certSecretRef | toYaml | nindent 4 }}
-  {{- end }}
-  {{- end }}
+  {{- $repoSpec | toYaml | nindent 2 }}
 {{- end }}

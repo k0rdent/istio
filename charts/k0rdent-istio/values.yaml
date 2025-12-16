@@ -170,6 +170,14 @@ operator:
     # If not set, it is generated as `k0rdent-istio-operator`.
     name: ""
 
+istio:
+  # -- Repo of upstream Istio helm charts (for gateway, etc.).
+  repo:
+    name: istio
+    spec:
+      interval: 10m
+      url: https://istio-release.storage.googleapis.com/charts
+
 k0rdent-istio:
   # -- Repo of `istio-*` helm charts.
   repo:
