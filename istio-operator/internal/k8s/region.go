@@ -6,26 +6,26 @@ import (
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// If a Kubeconfig secret exists in the management cluster, we assume the cluster is not in the region
+// If a Credential has a non-empty region field, we assume the cluster was created in that KCM region
 func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
-	secret := new(corev1.Secret)
+	cred := new(crds.Credential)
 	namespacedName := types.NamespacedName{
-		Name:      GetSecretName(cd),
+		Name:      cd.Spec.Credential,
 		Namespace: DefaultKCMSystemNamespace,
 	}
-	err := client.Get(ctx, namespacedName, secret)
-	if errors.IsNotFound(err) {
-		return true, nil
-	}
-	if err != nil {
+
+	if err := client.Get(ctx, namespacedName, cred); err != nil {
 		return false, err
 	}
+
+	if cred.Spec.Region != "" {
+		return true, nil
+	}
+
 	return false, nil
 }
 
