@@ -19,7 +19,10 @@ const (
 	RotationInterval = 1 * time.Hour
 )
 
-// Manager handles periodic rotation of Istio remote secrets
+// Manager handles periodic rotation of Istio remote secrets.
+// It runs a background worker that periodically updates remote secrets for all
+// clusters labeled with the Istio role label, ensuring service account tokens
+// remain fresh and preventing expiration-related connectivity issues.
 type Manager struct {
 	kubeClient          client.Client
 	ticker              *time.Ticker
@@ -35,7 +38,10 @@ func NewManager(kubeClient client.Client) *Manager {
 	}
 }
 
-// StartRotationWorker starts the background worker that periodically rotates secrets
+// StartRotationWorker starts a background worker that periodically rotates Istio remote secrets.
+// The worker runs on a timer defined by RotationInterval and updates secrets for all clusters
+// with the Istio role label. It continues running until the provided context is cancelled.
+// This method blocks until the context is done, so it should typically be run in a goroutine.
 func (m *Manager) StartRotationWorker(ctx context.Context) {
 	log := log.FromContext(ctx)
 	log.Info("Starting secret rotation worker", "interval", RotationInterval)

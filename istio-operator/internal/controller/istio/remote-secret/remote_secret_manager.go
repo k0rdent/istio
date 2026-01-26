@@ -20,7 +20,7 @@ import (
 )
 
 type CreateOptions struct {
-	// AllowOverwrite reforces creation of a new remote secret and service account
+	// AllowOverwrite enforces creation of a new remote secret and service account
 	// token secret even if they already exists.
 	AllowOverwrite bool
 }

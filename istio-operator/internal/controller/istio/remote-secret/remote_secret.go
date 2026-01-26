@@ -135,7 +135,7 @@ type RemoteSecretOptions struct {
 	// SecretName selects a specific secret from the remote service account, if there are multiple
 	SecretName string
 
-	// AllowOverwrite reforces creation of a new remote secret and service account token secret
+	// AllowOverwrite enforces creation of a new remote secret and service account token secret
 	// even if they already exists.
 	AllowOverwrite bool
 }

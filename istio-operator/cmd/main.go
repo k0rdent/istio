@@ -165,8 +165,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctxWithValue := context.WithValue(context.Background(), "module", "IstioSecretRotation")
-	ctx, cancel := context.WithCancel(ctxWithValue)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	wg := &sync.WaitGroup{}
@@ -201,6 +200,7 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
 	}
 
 	cancel()
