@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
-	"istio.io/client-go/pkg/clientset/versioned"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -23,10 +22,9 @@ func init() {
 }
 
 type KubeClient struct {
-	Client        client.Client
-	Config        clientcmd.ClientConfig
-	Clientset     *kubernetes.Clientset
-	MetricsClient *versioned.Clientset
+	Client    client.Client
+	Config    clientcmd.ClientConfig
+	Clientset *kubernetes.Clientset
 }
 
 func NewClient() (*KubeClient, error) {
@@ -102,15 +100,9 @@ func newKubeClient(config clientcmd.ClientConfig) (*KubeClient, error) {
 		return nil, err
 	}
 
-	mc, err := versioned.NewForConfig(restConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	return &KubeClient{
-		Client:        client,
-		Clientset:     clientset,
-		Config:        config,
-		MetricsClient: mc,
+		Client:    client,
+		Clientset: clientset,
+		Config:    config,
 	}, nil
 }

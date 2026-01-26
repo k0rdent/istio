@@ -23,7 +23,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
-	"istio.io/istio/istioctl/pkg/multicluster"
+	"github.com/spf13/pflag"
 	"istio.io/istio/operator/cmd/mesh"
 	"istio.io/istio/operator/pkg/component"
 	"istio.io/istio/operator/pkg/render"
@@ -55,7 +55,92 @@ var (
 	tokenWaitBackoff = time.Second
 )
 
-func CreateRemoteSecret(ctx context.Context, opt multicluster.RemoteSecretOptions, clusterNamespace string, client kube.CLIClient) (*v1.Secret, multicluster.Warning, error) {
+type Warning error
+
+// RemoteSecretAuthType is a strongly typed authentication type suitable for use with pflags.Var().
+type (
+	RemoteSecretAuthType string
+	SecretType           string
+)
+
+var _ pflag.Value = (*RemoteSecretAuthType)(nil)
+
+func (at *RemoteSecretAuthType) String() string { return string(*at) }
+func (at *RemoteSecretAuthType) Type() string   { return "RemoteSecretAuthType" }
+func (at *RemoteSecretAuthType) Set(in string) error {
+	*at = RemoteSecretAuthType(in)
+	return nil
+}
+
+func (at *SecretType) String() string { return string(*at) }
+func (at *SecretType) Type() string   { return "SecretType" }
+func (at *SecretType) Set(in string) error {
+	*at = SecretType(in)
+	return nil
+}
+
+const (
+	// Use a bearer token for authentication to the remote kubernetes cluster.
+	RemoteSecretAuthTypeBearerToken RemoteSecretAuthType = "bearer-token"
+
+	// Use a custom authentication plugin for the remote kubernetes cluster.
+	RemoteSecretAuthTypePlugin RemoteSecretAuthType = "plugin"
+
+	// Secret generated from remote cluster
+	SecretTypeRemote SecretType = "remote"
+
+	// Secret generated from config cluster
+	SecretTypeConfig SecretType = "config"
+)
+
+// KubeOptions contains kubernetes options common to all commands.
+type KubeOptions struct {
+	Kubeconfig string
+	Context    string
+	Namespace  string
+}
+
+// RemoteSecretOptions contains the options for creating a remote secret.
+type RemoteSecretOptions struct {
+	KubeOptions
+
+	// Name of the local cluster whose credentials are stored in the secret. Must be
+	// DNS1123 label as it will be used for the k8s secret name.
+	ClusterName string
+
+	// Create a secret with this service account's credentials.
+	ServiceAccountName string
+
+	// CreateServiceAccount if true, the service account specified by ServiceAccountName
+	// will be created if it doesn't exist.
+	CreateServiceAccount bool
+
+	// Authentication method for the remote Kubernetes cluster.
+	AuthType RemoteSecretAuthType
+	// Authenticator plugin configuration
+	AuthPluginName   string
+	AuthPluginConfig map[string]string
+
+	// Type of the generated secret
+	Type SecretType
+
+	// ManifestsPath is a path to a manifestsPath and profiles directory in the local filesystem,
+	// or URL with a release tgz. This is only used when no reader service account exists and has
+	// to be created.
+	ManifestsPath string
+
+	// ServerOverride overrides the server IP/hostname field from the Kubeconfig
+	ServerOverride string
+
+	// SecretName selects a specific secret from the remote service account, if there are multiple
+	SecretName string
+
+	// AllowOverwrite reforces creation of a new remote secret and service account token secret
+	// even if they already exists.
+	AllowOverwrite bool
+}
+
+func CreateRemoteSecret(ctx context.Context, opt RemoteSecretOptions, clusterNamespace string, client kube.CLIClient) (*v1.Secret, Warning, error) {
 	// generate the clusterName if not specified
 	if opt.ClusterName == "" {
 		uid, err := clusterUID(client.Kube())
@@ -67,12 +152,12 @@ func CreateRemoteSecret(ctx context.Context, opt multicluster.RemoteSecretOption
 
 	var secretName string
 	switch opt.Type {
-	case multicluster.SecretTypeRemote:
+	case SecretTypeRemote:
 		secretName = GetRemoteSecretName(opt.ClusterName, clusterNamespace)
 		if opt.ServiceAccountName == "" {
 			opt.ServiceAccountName = constants.DefaultServiceAccountName
 		}
-	case multicluster.SecretTypeConfig:
+	case SecretTypeConfig:
 		secretName = configSecretName
 		if opt.ServiceAccountName == "" {
 			opt.ServiceAccountName = constants.DefaultConfigServiceAccountName
@@ -86,7 +171,7 @@ func CreateRemoteSecret(ctx context.Context, opt multicluster.RemoteSecretOption
 	}
 
 	var server string
-	var warn multicluster.Warning
+	var warn Warning
 	if opt.ServerOverride != "" {
 		server = opt.ServerOverride
 	} else {
@@ -98,9 +183,9 @@ func CreateRemoteSecret(ctx context.Context, opt multicluster.RemoteSecretOption
 
 	var remoteSecret *v1.Secret
 	switch opt.AuthType {
-	case multicluster.RemoteSecretAuthTypeBearerToken:
+	case RemoteSecretAuthTypeBearerToken:
 		remoteSecret, err = createRemoteSecretFromTokenAndServer(client, tokenSecret, opt.ClusterName, server, secretName, ctx)
-	case multicluster.RemoteSecretAuthTypePlugin:
+	case RemoteSecretAuthTypePlugin:
 		authProviderConfig := &api.AuthProviderConfig{
 			Name:   opt.AuthPluginName,
 			Config: opt.AuthPluginConfig,
@@ -244,7 +329,7 @@ func tokenDataFromSecret(tokenSecret *v1.Secret) (ca, token []byte, err error) {
 	return
 }
 
-func getServerFromKubeconfig(client kube.CLIClient) (string, multicluster.Warning, error) {
+func getServerFromKubeconfig(client kube.CLIClient) (string, Warning, error) {
 	restCfg := client.RESTConfig()
 	if restCfg == nil {
 		return "", nil, fmt.Errorf("failed getting REST config from client")
@@ -264,7 +349,7 @@ func GetRemoteSecretName(clusterName, namespace string) string {
 	return utils.GetNameHash(remoteSecretPrefix, name)
 }
 
-func getServiceAccountSecret(client kube.CLIClient, opt multicluster.RemoteSecretOptions, ctx context.Context) (*v1.Secret, error) {
+func getServiceAccountSecret(client kube.CLIClient, opt RemoteSecretOptions, ctx context.Context) (*v1.Secret, error) {
 	// Create the service account if it doesn't exist.
 	serviceAccount, err := getOrCreateServiceAccount(client, opt)
 	if err != nil {
@@ -280,7 +365,7 @@ func getServiceAccountSecret(client kube.CLIClient, opt multicluster.RemoteSecre
 func legacyGetServiceAccountSecret(
 	serviceAccount *v1.ServiceAccount,
 	client kube.CLIClient,
-	opt multicluster.RemoteSecretOptions,
+	opt RemoteSecretOptions,
 ) (*v1.Secret, error) {
 	if len(serviceAccount.Secrets) == 0 {
 		return nil, fmt.Errorf("no secret found in the service account: %s", serviceAccount)
@@ -320,7 +405,7 @@ func legacyGetServiceAccountSecret(
 func getOrCreateServiceAccountSecret(
 	serviceAccount *v1.ServiceAccount,
 	client kube.CLIClient,
-	opt multicluster.RemoteSecretOptions,
+	opt RemoteSecretOptions,
 	ctx context.Context,
 ) (*v1.Secret, error) {
 	log := log.FromContext(ctx)
@@ -346,19 +431,29 @@ func getOrCreateServiceAccountSecret(
 	}
 	for _, item := range allSecrets.Items {
 		secret := item
-		if secretReferencesServiceAccount(serviceAccount, &secret) == nil {
-			return &secret, nil
+		if err := secretReferencesServiceAccount(serviceAccount, &secret); err != nil {
+			continue
 		}
+
+		// If overwrite is enabled, delete the existing secret and create a new one
+		if opt.AllowOverwrite {
+			log.Info("Deleting existing secret for recreation", "secret", secret.Name, "namespace", secret.Namespace)
+			if err := client.Kube().CoreV1().Secrets(secret.Namespace).Delete(ctx, secret.Name, metav1.DeleteOptions{}); err != nil {
+				return nil, fmt.Errorf("failed to delete existing secret %s/%s: %w", secret.Namespace, secret.Name, err)
+			}
+			break
+		}
+
+		// Return the existing secret
+		return &secret, nil
 	}
 
 	// finally, create the sa token secret manually
 	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#manually-create-a-service-account-api-token
-	// TODO ephemeral time-based tokens are preferred; we should re-think this
-	log.Info("Creating token secret", "service account", serviceAccount.Name)
-	secretName := tokenSecretName(serviceAccount.Name)
+	log.Info("Creating new token secret", "serviceAccount", serviceAccount.Name, "namespace", opt.Namespace)
 	return client.Kube().CoreV1().Secrets(opt.Namespace).Create(ctx, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        secretName,
+			Name:        tokenSecretName(serviceAccount.Name),
 			Annotations: map[string]string{v1.ServiceAccountNameKey: serviceAccount.Name},
 		},
 		Type: v1.SecretTypeServiceAccountToken,
@@ -368,13 +463,13 @@ func getOrCreateServiceAccountSecret(
 func secretReferencesServiceAccount(serviceAccount *v1.ServiceAccount, secret *v1.Secret) error {
 	if secret.Type != v1.SecretTypeServiceAccountToken ||
 		secret.Annotations[v1.ServiceAccountNameKey] != serviceAccount.Name {
-		return fmt.Errorf("secret %s/%s does not reference ServiceAccount %s",
+		return fmt.Errorf("secret %s/%s does not reference service account %s",
 			secret.Namespace, secret.Name, serviceAccount.Name)
 	}
 	return nil
 }
 
-func getOrCreateServiceAccount(client kube.CLIClient, opt multicluster.RemoteSecretOptions) (*v1.ServiceAccount, error) {
+func getOrCreateServiceAccount(client kube.CLIClient, opt RemoteSecretOptions) (*v1.ServiceAccount, error) {
 	if sa, err := client.Kube().CoreV1().ServiceAccounts(opt.Namespace).Get(
 		context.TODO(), opt.ServiceAccountName, metav1.GetOptions{}); err == nil {
 		return sa, nil
@@ -406,7 +501,7 @@ func tokenSecretName(saName string) string {
 	return saName + "-istio-remote-secret-token"
 }
 
-func createServiceAccount(client kube.CLIClient, opt multicluster.RemoteSecretOptions) error {
+func createServiceAccount(client kube.CLIClient, opt RemoteSecretOptions) error {
 	yaml, err := generateServiceAccountYAML(opt)
 	if err != nil {
 		return err
@@ -421,7 +516,7 @@ func createServiceAccount(client kube.CLIClient, opt multicluster.RemoteSecretOp
 	return client.ApplyYAMLContents(opt.Namespace, yaml)
 }
 
-func generateServiceAccountYAML(opt multicluster.RemoteSecretOptions) (string, error) {
+func generateServiceAccountYAML(opt RemoteSecretOptions) (string, error) {
 	flags := []string{"installPackagePath=" + opt.ManifestsPath, "values.global.istioNamespace=" + opt.Namespace}
 	mfs, _, err := render.GenerateManifest(nil, flags, false, nil, nil)
 	if err != nil {

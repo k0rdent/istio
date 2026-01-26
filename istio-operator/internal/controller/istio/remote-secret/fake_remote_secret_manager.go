@@ -23,7 +23,7 @@ func NewFakeRemoteSecretCreator() IIstioRemoteSecretCreator {
 	return &FakeRemoteSecretCreator{}
 }
 
-func (f *FakeRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, cd *kcmv1beta1.ClusterDeployment) (*corev1.Secret, error) {
+func (f *FakeRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, cd *kcmv1beta1.ClusterDeployment, opt CreateOptions) (*corev1.Secret, error) {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: istio.IstioSystemNamespace,

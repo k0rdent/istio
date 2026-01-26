@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"os"
+	"sync"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -28,6 +30,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
+	secretrotation "github.com/k0rdent/istio/istio-operator/internal/secret-rotation"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -162,6 +165,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctxWithValue := context.WithValue(context.Background(), "module", "IstioSecretRotation")
+	ctx, cancel := context.WithCancel(ctxWithValue)
+	defer cancel()
+
+	wg := &sync.WaitGroup{}
+	wg.Go(func() {
+		secretrotation.NewManager(mgr.GetClient()).StartRotationWorker(ctx)
+	})
+
 	record.InitFromRecorder(mgr.GetEventRecorderFor("istio-operator"))
 
 	if err = (&controller.ClusterDeploymentReconciler{
@@ -189,6 +201,8 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
 	}
+
+	cancel()
+	wg.Wait()
 }
