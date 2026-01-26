@@ -5,6 +5,10 @@ import (
 	"fmt"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
+	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
+	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
+	sveltosv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
+	"istio.io/istio/pkg/kube"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -17,14 +21,17 @@ var LocalKubeClient *KubeClient
 var scheme = runtime.NewScheme()
 
 func init() {
-	utilruntime.Must(kcmv1beta1.AddToScheme(scheme))
+	utilruntime.Must(crds.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(cmv1.AddToScheme(scheme))
+	utilruntime.Must(sveltosv1beta1.AddToScheme(scheme))
 }
 
 type KubeClient struct {
 	Client    client.Client
 	Config    clientcmd.ClientConfig
 	Clientset *kubernetes.Clientset
+	CLIClient kube.CLIClient
 }
 
 func NewClient() (*KubeClient, error) {
@@ -100,9 +107,15 @@ func newKubeClient(config clientcmd.ClientConfig) (*KubeClient, error) {
 		return nil, err
 	}
 
+	cliClient, err := kube.NewCLIClient(config)
+	if err != nil {
+		return nil, err
+	}
+
 	return &KubeClient{
 		Client:    client,
 		Clientset: clientset,
+		CLIClient: cliClient,
 		Config:    config,
 	}, nil
 }

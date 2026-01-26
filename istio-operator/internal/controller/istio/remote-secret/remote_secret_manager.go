@@ -9,11 +9,9 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
-	"istio.io/istio/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -124,7 +122,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		return fmt.Errorf("failed to create remote secret: %v", err)
 	}
 
-	if err := rs.createSecretResource(ctx, remoteSecret); err != nil {
+	if err := rs.createSecretResource(ctx, remoteSecret, clusterDeployment); err != nil {
 		log.Error(err, "failed to create remote secret")
 		return fmt.Errorf("failed to create remote secret: %v", err)
 	}
@@ -141,13 +139,15 @@ func (rs *RemoteSecretManager) remoteSecretExists(ctx context.Context, cd *kcmv1
 }
 
 // Function creates the remote secret resource in k8s
-func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret *corev1.Secret) error {
-	if err := rs.client.Create(ctx, secret); err != nil {
-		if errors.IsAlreadyExists(err) {
-			return nil
-		}
+func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret *corev1.Secret, cd *kcmv1beta1.ClusterDeployment) error {
+	if err := rs.client.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+
+	if err := rs.client.Create(ctx, secret); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -186,15 +186,9 @@ func NewIstioRemoteSecret() IIstioRemoteSecretCreator {
 func (rs *IstioRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) (*corev1.Secret, error) {
 	log := log.FromContext(ctx)
 
-	config, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
+	kubeClient, err := k8s.NewKubeClientFromKubeconfig(kubeconfig)
 	if err != nil {
-		log.Error(err, "failed to create new client config")
-		return nil, err
-	}
-
-	kubeClient, err := kube.NewCLIClient(config)
-	if err != nil {
-		log.Error(err, "failed to create cli client")
+		log.Error(err, "failed to create kube client from kubeconfig")
 		return nil, err
 	}
 

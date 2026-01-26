@@ -27,9 +27,14 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/k0rdent/istio/istio-operator/internal/controller"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
+	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
+	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	secretrotation "github.com/k0rdent/istio/istio-operator/internal/secret-rotation"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -42,10 +47,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
-	"github.com/k0rdent/istio/istio-operator/internal/controller"
-	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
-	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
-	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	sveltosv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
 )
@@ -95,6 +96,20 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	kubeClient, err := k8s.NewClient()
+	if err != nil {
+		setupLog.Error(err, "unable to create k8s client for secret rotation manager")
+		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wg := &sync.WaitGroup{}
+	wg.Go(func() {
+		secretrotation.NewManager(kubeClient).StartRotationWorker(ctx)
+	})
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -164,14 +179,6 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	wg := &sync.WaitGroup{}
-	wg.Go(func() {
-		secretrotation.NewManager(mgr.GetClient()).StartRotationWorker(ctx)
-	})
 
 	record.InitFromRecorder(mgr.GetEventRecorderFor("istio-operator"))
 

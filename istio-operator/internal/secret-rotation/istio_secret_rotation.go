@@ -8,6 +8,7 @@ import (
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
+	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,17 +25,17 @@ const (
 // clusters labeled with the Istio role label, ensuring service account tokens
 // remain fresh and preventing expiration-related connectivity issues.
 type Manager struct {
-	kubeClient          client.Client
+	kubeClient          *k8s.KubeClient
 	ticker              *time.Ticker
 	remoteSecretManager *remotesecret.RemoteSecretManager
 }
 
 // NewManager creates a new secret rotation manager
-func NewManager(kubeClient client.Client) *Manager {
+func NewManager(kubeClient *k8s.KubeClient) *Manager {
 	return &Manager{
 		kubeClient:          kubeClient,
 		ticker:              time.NewTicker(RotationInterval),
-		remoteSecretManager: remotesecret.New(kubeClient),
+		remoteSecretManager: remotesecret.New(kubeClient.Client),
 	}
 }
 
@@ -45,6 +46,9 @@ func NewManager(kubeClient client.Client) *Manager {
 func (m *Manager) StartRotationWorker(ctx context.Context) {
 	log := log.FromContext(ctx)
 	log.Info("Starting secret rotation worker", "interval", RotationInterval)
+
+	// Make an initial rotation on startup
+	m.rotateSecrets(ctx)
 
 	defer m.ticker.Stop()
 
@@ -100,7 +104,7 @@ func (m *Manager) getIstioClusters(ctx context.Context) ([]kcmv1beta1.ClusterDep
 	selector := labels.NewSelector().Add(*requirement)
 	opts := &client.ListOptions{LabelSelector: selector}
 
-	if err := m.kubeClient.List(ctx, &clustersList, opts); err != nil {
+	if err := m.kubeClient.Client.List(ctx, &clustersList, opts); err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)
 	}
 	return clustersList.Items, nil
