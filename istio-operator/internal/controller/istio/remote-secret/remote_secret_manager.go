@@ -195,11 +195,10 @@ func (rs *IstioRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubecon
 	secret, warn, err := CreateRemoteSecret(
 		ctx,
 		RemoteSecretOptions{
-			AllowOverwrite:       opt.AllowOverwrite,
-			Type:                 SecretTypeRemote,
-			AuthType:             RemoteSecretAuthTypeBearerToken,
-			ClusterName:          clusterDeployment.Name,
-			CreateServiceAccount: false,
+			AllowOverwrite: opt.AllowOverwrite,
+			Type:           SecretTypeRemote,
+			AuthType:       RemoteSecretAuthTypeBearerToken,
+			ClusterName:    clusterDeployment.Name,
 			KubeOptions: KubeOptions{
 				Namespace: istio.IstioSystemNamespace,
 			},

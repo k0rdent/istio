@@ -26,11 +26,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	"github.com/spf13/pflag"
-	"istio.io/istio/operator/cmd/mesh"
-	"istio.io/istio/operator/pkg/component"
-	"istio.io/istio/operator/pkg/render"
 	"istio.io/istio/pkg/config/constants"
-	"istio.io/istio/pkg/kube"
 	mcluster "istio.io/istio/pkg/kube/multicluster"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/api/core/v1"
@@ -120,10 +116,6 @@ type RemoteSecretOptions struct {
 	// Create a secret with this service account's credentials.
 	ServiceAccountName string
 
-	// CreateServiceAccount if true, the service account specified by ServiceAccountName
-	// will be created if it doesn't exist.
-	CreateServiceAccount bool
-
 	// Authentication method for the remote Kubernetes cluster.
 	AuthType RemoteSecretAuthType
 	// Authenticator plugin configuration
@@ -184,7 +176,7 @@ func CreateRemoteSecret(ctx context.Context, opt RemoteSecretOptions, clusterNam
 	if opt.ServerOverride != "" {
 		server = opt.ServerOverride
 	} else {
-		server, warn, err = getServerFromKubeconfig(client.CLIClient)
+		server, warn, err = getServerFromKubeconfig(client)
 		if err != nil {
 			return nil, warn, err
 		}
@@ -286,7 +278,7 @@ func createPluginKubeconfig(caData []byte, clusterName, server string, authProvi
 }
 
 func createRemoteSecretFromTokenAndServer(client *k8s.KubeClient, tokenSecret *v1.Secret, clusterName, server, secName string, ctx context.Context) (*v1.Secret, error) {
-	caData, token, err := waitForTokenData(client.CLIClient, tokenSecret, ctx)
+	caData, token, err := waitForTokenData(client, tokenSecret, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +293,7 @@ func createRemoteSecretFromTokenAndServer(client *k8s.KubeClient, tokenSecret *v
 	return createRemoteServiceAccountSecret(kubeconfig, clusterName, secName)
 }
 
-func waitForTokenData(client kube.CLIClient, secret *v1.Secret, ctx context.Context) (ca, token []byte, err error) {
+func waitForTokenData(client *k8s.KubeClient, secret *v1.Secret, ctx context.Context) (ca, token []byte, err error) {
 	log := log.FromContext(ctx)
 
 	ca, token, err = tokenDataFromSecret(secret)
@@ -312,7 +304,7 @@ func waitForTokenData(client kube.CLIClient, secret *v1.Secret, ctx context.Cont
 	log.Info("Waiting for data to be populated", "secret name", secret.Name)
 	err = backoff.Retry(
 		func() error {
-			secret, err = client.Kube().CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+			secret, err = client.Clientset.CoreV1().Secrets(secret.Namespace).Get(ctx, secret.Name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -338,11 +330,12 @@ func tokenDataFromSecret(tokenSecret *v1.Secret) (ca, token []byte, err error) {
 	return
 }
 
-func getServerFromKubeconfig(client kube.CLIClient) (string, Warning, error) {
-	restCfg := client.RESTConfig()
-	if restCfg == nil {
-		return "", nil, fmt.Errorf("failed getting REST config from client")
+func getServerFromKubeconfig(client *k8s.KubeClient) (string, Warning, error) {
+	restCfg, err := client.Config.ClientConfig()
+	if err != nil {
+		return "", nil, fmt.Errorf("failed getting REST config from client: %v", err)
 	}
+
 	server := restCfg.Host
 	if strings.Contains(server, "127.0.0.1") || strings.Contains(server, "localhost") {
 		return server, fmt.Errorf(
@@ -365,7 +358,7 @@ func getServiceAccountSecret(client *k8s.KubeClient, opt RemoteSecretOptions, ct
 		return nil, err
 	}
 
-	if !kube.IsAtLeastVersion(client.CLIClient, 24) {
+	if !k8s.IsAtLeastVersion(client.Clientset, 24) {
 		return legacyGetServiceAccountSecret(serviceAccount, client, opt)
 	}
 	return getOrCreateServiceAccountSecret(serviceAccount, client, opt, ctx)
@@ -429,7 +422,7 @@ func getOrCreateServiceAccountSecret(
 		return nil, fmt.Errorf("failed to get existing secret %s/%s: %w", opt.Namespace, secretName, err)
 	}
 
-	if !opt.AllowOverwrite && secretReferencesServiceAccount(serviceAccount, existingSecret) == nil {
+	if !opt.AllowOverwrite && existingSecret.Name != "" {
 		log.Info("Found existing service account secret", "secret", secretName, "namespace", opt.Namespace)
 		return existingSecret, nil
 	}
@@ -439,20 +432,30 @@ func getOrCreateServiceAccountSecret(
 		return nil, fmt.Errorf("failed to get CA certificate: %w", err)
 	}
 
-	tokenReq := &authenticationv1.TokenRequest{
-		Spec: authenticationv1.TokenRequestSpec{
-			Audiences:         []string{},
-			ExpirationSeconds: ptr.To(int64(serviceAccountTokenExpirationSeconds)),
-		},
-	}
-
-	tokenResp, err := client.Clientset.CoreV1().ServiceAccounts(opt.Namespace).CreateToken(ctx, serviceAccount.Name, tokenReq, metav1.CreateOptions{})
+	saToken, err := getServiceAccountToken(ctx, client, serviceAccount.Name, opt.Namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create token for service account %s/%s: %w", opt.Namespace, serviceAccount.Name, err)
+		return nil, fmt.Errorf("failed to get service account token: %w", err)
 	}
-
-	newToken := tokenResp.Status.Token
 	log.Info("Service Account token was successfully generated", "serviceAccount", serviceAccount.Name, "namespace", opt.Namespace)
+
+	if opt.AllowOverwrite && existingSecret.Name != "" {
+		existingSecret.Type = v1.SecretTypeOpaque
+		existingSecret.Data = map[string][]byte{
+			"token":     []byte(saToken),
+			"namespace": []byte(opt.Namespace),
+			"ca.crt":    caCert,
+		}
+		existingSecret.Annotations = map[string]string{
+			v1.ServiceAccountNameKey: serviceAccount.Name,
+		}
+
+		log.Info("Updating existing secret with new token", "secret", secretName, "namespace", opt.Namespace)
+		updatedSecret, err := client.Clientset.CoreV1().Secrets(opt.Namespace).Update(ctx, existingSecret, metav1.UpdateOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update existing secret %s/%s: %w", opt.Namespace, existingSecret.Name, err)
+		}
+		return updatedSecret, nil
+	}
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -462,113 +465,29 @@ func getOrCreateServiceAccountSecret(
 		},
 		Type: v1.SecretTypeOpaque,
 		Data: map[string][]byte{
-			"token":     []byte(newToken),
+			"token":     []byte(saToken),
 			"namespace": []byte(opt.Namespace),
 			"ca.crt":    caCert,
 		},
-	}
-
-	if existingSecret.Name != "" && opt.AllowOverwrite {
-		if err := client.Clientset.CoreV1().Secrets(opt.Namespace).Delete(ctx, existingSecret.Name, metav1.DeleteOptions{}); err != nil {
-			return nil, fmt.Errorf("failed to delete existing secret %s/%s: %w", opt.Namespace, existingSecret.Name, err)
-		}
 	}
 
 	log.Info("Creating new secret with token", "secret", secretName, "namespace", opt.Namespace)
 	return client.Clientset.CoreV1().Secrets(opt.Namespace).Create(ctx, secret, metav1.CreateOptions{})
 }
 
-func secretReferencesServiceAccount(serviceAccount *v1.ServiceAccount, secret *v1.Secret) error {
-	if secret.Type != v1.SecretTypeServiceAccountToken ||
-		secret.Annotations[v1.ServiceAccountNameKey] != serviceAccount.Name {
-		return fmt.Errorf("secret %s/%s does not reference service account %s",
-			secret.Namespace, secret.Name, serviceAccount.Name)
-	}
-	return nil
-}
-
 func getOrCreateServiceAccount(client *k8s.KubeClient, opt RemoteSecretOptions) (*v1.ServiceAccount, error) {
-	if sa, err := client.Clientset.CoreV1().ServiceAccounts(opt.Namespace).Get(
-		context.TODO(), opt.ServiceAccountName, metav1.GetOptions{}); err == nil {
-		return sa, nil
-	} else if !opt.CreateServiceAccount {
-		// User chose not to automatically create the service account.
-		return nil, fmt.Errorf("failed retrieving service account %s.%s required for creating "+
-			"the remote secret (hint: try installing a minimal Istio profile on the cluster first, "+
-			"or run with '--create-service-account=true'): %v",
-			opt.ServiceAccountName,
-			opt.Namespace,
-			err)
-	}
-
-	if err := createServiceAccount(client, opt); err != nil {
-		return nil, err
-	}
-
-	// Return the newly created service account.
-	sa, err := client.Clientset.CoreV1().ServiceAccounts(opt.Namespace).Get(
-		context.TODO(), opt.ServiceAccountName, metav1.GetOptions{})
+	sa, err := client.Clientset.CoreV1().ServiceAccounts(opt.Namespace).Get(context.TODO(), opt.ServiceAccountName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed retrieving service account %s.%s after creating it: %v",
-			opt.ServiceAccountName, opt.Namespace, err)
+		if errors.IsNotFound(err) {
+			return nil, fmt.Errorf("Service account not found, it should be created by K0rdent Istio helm chart")
+		}
+		return nil, fmt.Errorf("failed to get ServiceAccount: %v", err)
 	}
 	return sa, nil
 }
 
 func tokenSecretName(saName string) string {
 	return saName + "-istio-remote-secret-token"
-}
-
-func createServiceAccount(client *k8s.KubeClient, opt RemoteSecretOptions) error {
-	yaml, err := generateServiceAccountYAML(opt)
-	if err != nil {
-		return err
-	}
-
-	// Before we can apply the yaml, we have to ensure the system namespace exists.
-	if err := createNamespaceIfNotExist(client, opt.Namespace); err != nil {
-		return err
-	}
-
-	// Apply the YAML to the cluster.
-	return client.CLIClient.ApplyYAMLContents(opt.Namespace, yaml)
-}
-
-func generateServiceAccountYAML(opt RemoteSecretOptions) (string, error) {
-	flags := []string{"installPackagePath=" + opt.ManifestsPath, "values.global.istioNamespace=" + opt.Namespace}
-	mfs, _, err := render.GenerateManifest(nil, flags, false, nil, nil)
-	if err != nil {
-		return "", err
-	}
-	included := []string{}
-	for _, mf := range mfs {
-		if mf.Component != component.BaseComponentName && mf.Component != component.PilotComponentName {
-			continue
-		}
-		for _, m := range mf.Manifests {
-			if m.GetKind() == "ClusterRole" || m.GetKind() == "ClusterRoleBinding" {
-				included = append(included, m.Content)
-			}
-			if m.GetKind() == "ServiceAccount" && m.GetName() == "istio-reader-service-account" {
-				included = append(included, m.Content)
-			}
-		}
-	}
-
-	return strings.Join(included, mesh.YAMLSeparator), nil
-}
-
-func createNamespaceIfNotExist(client *k8s.KubeClient, ns string) error {
-	if _, err := client.Clientset.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{}); err != nil {
-		if _, err := client.Clientset.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ns,
-			},
-		}, metav1.CreateOptions{}); err != nil {
-			return fmt.Errorf("failed creating namespace %s: %v", ns, err)
-		}
-	}
-	return nil
 }
 
 func createBearerTokenKubeconfig(caData, token []byte, clusterName, server string) *api.Config {
@@ -613,4 +532,20 @@ func getCAcert(client *k8s.KubeClient) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("no CA certificate found for cluster %q", ctx.Cluster)
+}
+
+func getServiceAccountToken(ctx context.Context, client *k8s.KubeClient, saName, namespace string) (string, error) {
+	tokenReq := &authenticationv1.TokenRequest{
+		Spec: authenticationv1.TokenRequestSpec{
+			Audiences:         []string{},
+			ExpirationSeconds: ptr.To(int64(serviceAccountTokenExpirationSeconds)),
+		},
+	}
+
+	tokenResp, err := client.Clientset.CoreV1().ServiceAccounts(namespace).CreateToken(ctx, saName, tokenReq, metav1.CreateOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to create token for service account %s/%s: %w", namespace, saName, err)
+	}
+
+	return tokenResp.Status.Token, nil
 }
