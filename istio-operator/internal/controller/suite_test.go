@@ -71,6 +71,8 @@ var _ = AfterEach(func() {
 		&kcmv1beta1.MultiClusterService{},
 		&corev1.ConfigMap{},
 		&corev1.Secret{},
+		&crds.Credential{},
+		&crds.Region{},
 	}
 
 	namespaces := []string{DefaultNamespace, ReleaseNamespace, k8s.DefaultKCMSystemNamespace}

@@ -17,6 +17,7 @@ package remotesecret
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -30,7 +31,7 @@ import (
 	mcluster "istio.io/istio/pkg/kube/multicluster"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -418,7 +419,7 @@ func getOrCreateServiceAccountSecret(
 	}
 
 	existingSecret, err := client.Clientset.CoreV1().Secrets(opt.Namespace).Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return nil, fmt.Errorf("failed to get existing secret %s/%s: %w", opt.Namespace, secretName, err)
 	}
 
@@ -478,8 +479,8 @@ func getOrCreateServiceAccountSecret(
 func getOrCreateServiceAccount(client *k8s.KubeClient, opt RemoteSecretOptions) (*v1.ServiceAccount, error) {
 	sa, err := client.Clientset.CoreV1().ServiceAccounts(opt.Namespace).Get(context.TODO(), opt.ServiceAccountName, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("Service account not found, it should be created by K0rdent Istio helm chart")
+		if kerrors.IsNotFound(err) {
+			return nil, errors.New("service account not found, it should be created by K0rdent Istio helm chart")
 		}
 		return nil, fmt.Errorf("failed to get ServiceAccount: %v", err)
 	}

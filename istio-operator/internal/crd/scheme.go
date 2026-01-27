@@ -23,5 +23,9 @@ func init() {
 		&kcmv1beta1.ClusterDeploymentList{},
 		&kcmv1beta1.MultiClusterService{},
 		&kcmv1beta1.MultiClusterServiceList{},
+		&Credential{},
+		&CredentialList{},
+		&Region{},
+		&RegionList{},
 	)
 }

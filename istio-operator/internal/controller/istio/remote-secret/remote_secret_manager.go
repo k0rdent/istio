@@ -119,10 +119,10 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 
 	remoteSecret, err := rs.GetRemoteSecret(ctx, kubeconfig, clusterDeployment, opt)
 	if err != nil {
-		return fmt.Errorf("failed to create remote secret: %v", err)
+		return fmt.Errorf("failed to get remote secret: %v", err)
 	}
 
-	if err := rs.createSecretResource(ctx, remoteSecret, clusterDeployment); err != nil {
+	if err := rs.createSecretResource(ctx, remoteSecret); err != nil {
 		log.Error(err, "failed to create remote secret")
 		return fmt.Errorf("failed to create remote secret: %v", err)
 	}
@@ -139,7 +139,7 @@ func (rs *RemoteSecretManager) remoteSecretExists(ctx context.Context, cd *kcmv1
 }
 
 // Function creates the remote secret resource in k8s
-func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret *corev1.Secret, cd *kcmv1beta1.ClusterDeployment) error {
+func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret *corev1.Secret) error {
 	if err := rs.client.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
 		return err
 	}

@@ -39,10 +39,6 @@ const (
 	RegionConfigurationErrorReason = "ConfigurationError"
 )
 
-func init() {
-	SchemeBuilder.Register(&Region{}, &RegionList{})
-}
-
 // +kubebuilder:validation:XValidation:rule="has(self.kubeConfig) != has(self.clusterDeployment)",message="exactly one of kubeConfig or clusterDeployment must be set"
 
 // RegionSpec defines the desired state of Region
