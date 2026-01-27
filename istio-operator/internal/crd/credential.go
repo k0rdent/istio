@@ -85,10 +85,6 @@ type Credential struct {
 	Status CredentialStatus `json:"status,omitempty"`
 }
 
-func init() {
-	SchemeBuilder.Register(&Credential{}, &CredentialList{})
-}
-
 func (in *Credential) GetConditions() *[]metav1.Condition {
 	return &in.Status.Conditions
 }

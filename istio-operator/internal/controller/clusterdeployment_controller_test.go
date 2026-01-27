@@ -11,6 +11,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
+	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -68,7 +69,8 @@ var _ = Describe("ClusterDeployment Controller", func() {
 					Annotations: annotations,
 				},
 				Spec: kcmv1beta1.ClusterDeploymentSpec{
-					Template: "aws-cluster-template",
+					Template:   "aws-cluster-template",
+					Credential: name,
 				},
 			}
 			Expect(k8sClient.Create(ctx, clusterDeployment)).To(Succeed())
@@ -106,6 +108,22 @@ var _ = Describe("ClusterDeployment Controller", func() {
 			Expect(k8sClient.Create(ctx, kubeconfigSecret)).To(Succeed())
 		}
 
+		createCred := func(credName, secretName, namespace string) {
+			cred := &crds.Credential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      credName,
+					Namespace: namespace,
+				},
+				Spec: crds.CredentialSpec{
+					IdentityRef: &corev1.ObjectReference{
+						Name:      secretName,
+						Namespace: namespace,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, cred)).To(Succeed())
+		}
+
 		BeforeEach(func() {
 			clusterDeploymentReconciler = &ClusterDeploymentReconciler{
 				Client:                         k8sClient,
@@ -139,8 +157,18 @@ var _ = Describe("ClusterDeployment Controller", func() {
 
 			By("creating the fake Secret for the cluster deployment kubeconfig")
 			createSecret(secretName, DefaultNamespace)
+			createCred(
+				clusterDeploymentName,
+				secretName,
+				DefaultNamespace,
+			)
 
 			createSecret(
+				fmt.Sprintf("%s-%s", clusterDeploymentName, "kubeconfig"),
+				k8s.DefaultKCMSystemNamespace,
+			)
+			createCred(
+				clusterDeploymentName,
 				fmt.Sprintf("%s-%s", clusterDeploymentName, "kubeconfig"),
 				k8s.DefaultKCMSystemNamespace,
 			)

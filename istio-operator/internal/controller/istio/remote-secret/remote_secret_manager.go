@@ -9,16 +9,19 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
-	"istio.io/istio/istioctl/pkg/multicluster"
-	"istio.io/istio/pkg/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+type CreateOptions struct {
+	// AllowOverwrite enforces creation of a new remote secret and service account
+	// token secret even if they already exists.
+	AllowOverwrite bool
+}
 
 type RemoteSecretManager struct {
 	client client.Client
@@ -56,7 +59,7 @@ func (rs *RemoteSecretManager) TryDelete(ctx context.Context, request ctrl.Reque
 }
 
 // Function handles the creation of a remote secret
-func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment) error {
+func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) error {
 	log := log.FromContext(ctx)
 	log.Info("Trying to create remote secret")
 
@@ -65,14 +68,16 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		return nil
 	}
 
-	exists, err := rs.remoteSecretExists(ctx, clusterDeployment)
-	if err != nil {
-		return fmt.Errorf("failed to check remote secret: %v", err)
-	}
+	if !opt.AllowOverwrite {
+		exists, err := rs.remoteSecretExists(ctx, clusterDeployment)
+		if err != nil {
+			return fmt.Errorf("failed to check remote secret: %v", err)
+		}
 
-	if exists {
-		log.Info("Remote secret already exists")
-		return nil
+		if exists {
+			log.Info("Remote secret already exists")
+			return nil
+		}
 	}
 
 	createdInKCMRegion, err := k8s.CreatedInKCMRegion(ctx, rs.client, clusterDeployment)
@@ -112,9 +117,9 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		}
 	}
 
-	remoteSecret, err := rs.GetRemoteSecret(ctx, kubeconfig, clusterDeployment)
+	remoteSecret, err := rs.GetRemoteSecret(ctx, kubeconfig, clusterDeployment, opt)
 	if err != nil {
-		return fmt.Errorf("failed to create remote secret: %v", err)
+		return fmt.Errorf("failed to get remote secret: %v", err)
 	}
 
 	if err := rs.createSecretResource(ctx, remoteSecret); err != nil {
@@ -135,12 +140,14 @@ func (rs *RemoteSecretManager) remoteSecretExists(ctx context.Context, cd *kcmv1
 
 // Function creates the remote secret resource in k8s
 func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret *corev1.Secret) error {
-	if err := rs.client.Create(ctx, secret); err != nil {
-		if errors.IsAlreadyExists(err) {
-			return nil
-		}
+	if err := rs.client.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+
+	if err := rs.client.Create(ctx, secret); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -168,7 +175,7 @@ func (rs *RemoteSecretManager) sendDeletionEvent(req ctrl.Request) {
 type IstioRemoteSecretCreator struct{}
 
 type IIstioRemoteSecretCreator interface {
-	GetRemoteSecret(context.Context, []byte, *kcmv1beta1.ClusterDeployment) (*corev1.Secret, error)
+	GetRemoteSecret(context.Context, []byte, *kcmv1beta1.ClusterDeployment, CreateOptions) (*corev1.Secret, error)
 }
 
 func NewIstioRemoteSecret() IIstioRemoteSecretCreator {
@@ -176,29 +183,23 @@ func NewIstioRemoteSecret() IIstioRemoteSecretCreator {
 }
 
 // Function creates a remote secret for Istio using the provided kubeconfig
-func (rs *IstioRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, clusterDeployment *kcmv1beta1.ClusterDeployment) (*corev1.Secret, error) {
+func (rs *IstioRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) (*corev1.Secret, error) {
 	log := log.FromContext(ctx)
 
-	config, err := clientcmd.NewClientConfigFromBytes(kubeconfig)
+	kubeClient, err := k8s.NewKubeClientFromKubeconfig(kubeconfig)
 	if err != nil {
-		log.Error(err, "failed to create new client config")
-		return nil, err
-	}
-
-	kubeClient, err := kube.NewCLIClient(config)
-	if err != nil {
-		log.Error(err, "failed to create cli client")
+		log.Error(err, "failed to create kube client from kubeconfig")
 		return nil, err
 	}
 
 	secret, warn, err := CreateRemoteSecret(
 		ctx,
-		multicluster.RemoteSecretOptions{
-			Type:                 multicluster.SecretTypeRemote,
-			AuthType:             multicluster.RemoteSecretAuthTypeBearerToken,
-			ClusterName:          clusterDeployment.Name,
-			CreateServiceAccount: false,
-			KubeOptions: multicluster.KubeOptions{
+		RemoteSecretOptions{
+			AllowOverwrite: opt.AllowOverwrite,
+			Type:           SecretTypeRemote,
+			AuthType:       RemoteSecretAuthTypeBearerToken,
+			ClusterName:    clusterDeployment.Name,
+			KubeOptions: KubeOptions{
 				Namespace: istio.IstioSystemNamespace,
 			},
 		},

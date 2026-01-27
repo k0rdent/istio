@@ -29,7 +29,6 @@ require github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
-	istio.io/client-go v1.25.0-alpha.0.0.20250227171830-489349726dc9
 )
 
 require (
@@ -124,6 +123,7 @@ require (
 	golang.org/x/mod v0.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	istio.io/api v1.25.0-alpha.0.0.20250227144231-affcb4000ed2 // indirect
+	istio.io/client-go v1.25.0-alpha.0.0.20250227171830-489349726dc9 // indirect
 	k8s.io/cli-runtime v0.33.3 // indirect
 	k8s.io/component-helpers v0.33.3 // indirect
 	k8s.io/kubectl v0.33.3 // indirect
@@ -183,7 +183,7 @@ require (
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/spf13/cobra v1.9.1 // indirect
-	github.com/spf13/pflag v1.0.7 // indirect
+	github.com/spf13/pflag v1.0.7
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/vmware-tanzu/velero v1.16.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect

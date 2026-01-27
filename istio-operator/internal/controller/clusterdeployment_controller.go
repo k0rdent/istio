@@ -143,7 +143,7 @@ func (r *ClusterDeploymentReconciler) tryDeleteResources(ctx context.Context, re
 }
 
 func (r *ClusterDeploymentReconciler) tryCreateResources(ctx context.Context, req ctrl.Request, clusterDeployment *kcmv1beta1.ClusterDeployment) (ctrl.Result, error) {
-	if err := r.RemoteSecretManager.TryCreate(ctx, clusterDeployment); err != nil {
+	if err := r.RemoteSecretManager.TryCreate(ctx, clusterDeployment, remotesecret.CreateOptions{}); err != nil {
 		utils.LogEvent(
 			ctx,
 			"SecretCreationFailed",
