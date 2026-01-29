@@ -75,9 +75,13 @@ func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl
 }
 
 func (m *RemoteSecretPropagationManager) multiClusterServiceExists(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
-	mcs := &kcmv1beta1.MultiClusterService{}
-	mcsName := GetMultiClusterServiceNameHash(cd.Name, cd.Namespace)
-	return utils.IsResourceExists(ctx, m.client, mcs, mcsName, "")
+	return utils.IsResourceExists(
+		ctx,
+		m.client,
+		&kcmv1beta1.MultiClusterService{},
+		GetMultiClusterServiceNameHash(cd.Name, cd.Namespace),
+		"",
+	)
 }
 
 func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {

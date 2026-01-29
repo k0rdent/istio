@@ -85,7 +85,8 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		return fmt.Errorf("failed to determine cluster region: %v", err)
 	}
 
-	var kubeconfig []byte
+	regionKubeClient := rs.client
+
 	if createdInKCMRegion {
 		regionClusterName, err := k8s.GetKcmRegionClusterNameRelatedToClusterDeployment(ctx, rs.client, clusterDeployment)
 		if err != nil {
@@ -101,20 +102,22 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 			return fmt.Errorf("no kubeconfig found for region cluster name: %s", regionClusterName)
 		}
 
-		regionclient, err := k8s.NewKubeClientFromKubeconfig(regionKubeconfig)
+		regionClient, err := k8s.NewKubeClientFromKubeconfig(regionKubeconfig)
 		if err != nil {
 			return fmt.Errorf("failed to create kube client from region kubeconfig: %v", err)
 		}
 
-		kubeconfig, err = k8s.GetKubeconfigFromSecret(ctx, regionclient.Client, k8s.GetSecretName(clusterDeployment))
-		if err != nil {
-			return fmt.Errorf("failed to get kubeconfig from secret: %v", err)
-		}
-	} else {
-		kubeconfig, err = k8s.GetKubeconfigFromSecret(ctx, rs.client, k8s.GetSecretName(clusterDeployment))
-		if err != nil {
-			return fmt.Errorf("failed to get kubeconfig from secret: %v", err)
-		}
+		regionKubeClient = regionClient.Client
+	}
+
+	kubeconfigSecretName, err := k8s.GetKubeconfigSecretName(ctx, rs.client, clusterDeployment)
+	if err != nil {
+		return fmt.Errorf("failed to get kubeconfig secret name: %v", err)
+	}
+
+	kubeconfig, err := k8s.GetKubeconfigFromSecret(ctx, regionKubeClient, kubeconfigSecretName)
+	if err != nil {
+		return fmt.Errorf("failed to get kubeconfig from secret: %v", err)
 	}
 
 	remoteSecret, err := rs.GetRemoteSecret(ctx, kubeconfig, clusterDeployment, opt)
