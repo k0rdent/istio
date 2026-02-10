@@ -15,11 +15,11 @@ $(CHARTS_PACKAGE_DIR): | $(LOCALBIN)
 KCM_NAMESPACE ?= kcm-system
 CONTAINER_TOOL ?= docker
 KIND_NETWORK ?= kind
-REGISTRY_NAME ?= istio-registry
-REGISTRY_PORT ?= 8081
-REGISTRY_REPO ?= http://127.0.0.1:$(REGISTRY_PORT)
+REGISTRY_NAME ?= kcm-local-registry
+REGISTRY_PORT ?= 5001
+REGISTRY_REPO ?= oci://127.0.0.1:$(REGISTRY_PORT)/charts
 REGISTRY_IS_OCI = $(shell echo $(REGISTRY_REPO) | grep -q oci && echo true || echo false)
-REGISTRY_PLAIN_HTTP ?= false
+REGISTRY_PLAIN_HTTP ?= true
 
 TEMPLATE_FOLDERS = $(patsubst $(TEMPLATES_DIR)/%,%,$(wildcard $(TEMPLATES_DIR)/*))
 
@@ -27,8 +27,8 @@ KIND_CLUSTER_NAME ?= kcm-dev
 
 define set_local_registry
 	$(eval $@_VALUES = $(1))
-	$(YQ) eval -i '.k0rdent-istio.repo.spec.url = "http://$(REGISTRY_NAME):8080"' ${$@_VALUES}
-	$(YQ) eval -i '.k0rdent-istio.repo.spec.type = "default"' ${$@_VALUES}
+	$(YQ) eval -i '.k0rdent-istio.repo.spec.url = "oci://$(REGISTRY_NAME):5000/charts"' ${$@_VALUES}
+	$(YQ) eval -i '.k0rdent-istio.repo.spec.type = "oci"' ${$@_VALUES}
 endef
 
 dev:
@@ -45,11 +45,7 @@ package-chart-%: lint-chart-%
 registry-deploy:
 	@if [ ! "$$($(CONTAINER_TOOL) ps -aq -f name=$(REGISTRY_NAME))" ]; then \
 		echo "Starting new local registry container $(REGISTRY_NAME)"; \
-		$(CONTAINER_TOOL) run -d --restart=always -p "127.0.0.1:$(REGISTRY_PORT):8080" --network bridge \
-			--name "$(REGISTRY_NAME)" \
-			-e STORAGE=local \
-			-e STORAGE_LOCAL_ROOTDIR=/var/tmp \
-			ghcr.io/helm/chartmuseum:v0.16.2 ;\
+		$(CONTAINER_TOOL) run -d --restart=always -p "127.0.0.1:$(REGISTRY_PORT):5000" --network bridge --name "$(REGISTRY_NAME)" registry:2; \
 	fi; \
 	if [ "$$($(CONTAINER_TOOL) inspect -f='{{json .NetworkSettings.Networks.$(KIND_NETWORK)}}' $(REGISTRY_NAME))" = 'null' ]; then \
 		$(CONTAINER_TOOL) network connect $(KIND_NETWORK) $(REGISTRY_NAME); \
