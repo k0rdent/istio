@@ -51,6 +51,8 @@ gateway:
             protocol: TLS
           tls:
             mode: AUTO_PASSTHROUGH
+          # If {clusterName} placeholder is used in hosts field,
+          # it will be replaced with actual cluster name
           hosts:
             - "*.local"
 

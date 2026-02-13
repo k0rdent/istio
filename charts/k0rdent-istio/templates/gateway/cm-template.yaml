@@ -1,4 +1,20 @@
 {{- if and .Values.isManagement .Values.gateway.resource }}
+{{- $gatewayResource := .Values.gateway.resource }}
+{{- $processedResource := deepCopy $gatewayResource }}
+
+{{- /* Process hosts to replace {clusterName} */ -}}
+{{- if $processedResource.spec.servers }}
+{{- range $serverIdx, $server := $processedResource.spec.servers }}
+{{- if $server.hosts }}
+{{- $processedHosts := list }}
+{{- range $host := $server.hosts }}
+{{- $processedHosts = append $processedHosts ($host | replace "{clusterName}" "{{ .Cluster.metadata.name }}") }}
+{{- end }}
+{{- $_ := set $server "hosts" $processedHosts }}
+{{- end }}
+{{- end }}
+{{- end }}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,5 +24,5 @@ metadata:
     projectsveltos.io/template: "true"
 data:
   gateway.yaml: |
-{{ .Values.gateway.resource | toYaml | indent 4 }}
+{{ toYaml $processedResource | indent 4 }}
 {{- end }}
