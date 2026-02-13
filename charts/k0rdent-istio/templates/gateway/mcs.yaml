@@ -20,12 +20,14 @@ spec:
           labels:
             istio: eastwestgateway
 
+      {{- if .Values.gateway.resource }}
       - name: gateway-template
         namespace: {{ .Release.Namespace }}
         template: {{ .Chart.Name }}-gateway-template
         dependsOn:
           - name: istio-gateway
             namespace: {{ .Release.Namespace }}
+      {{- end }}
 ---
 # This MCS needed as a workaround to propagate gateway-template to KCM Region clusters
 apiVersion: k0rdent.mirantis.com/v1beta1

@@ -15,6 +15,7 @@ spec:
         kind: HelmRepository
         name: {{ .Values.istio.repo.name }}
 ---
+{{- if .Values.gateway.resource }}
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: ServiceTemplate
 metadata:
@@ -30,4 +31,5 @@ spec:
       namespace: {{ .Values.kcm.namespace }}
     deploymentType: Remote
     path: ""
+{{- end }}
 {{- end }}

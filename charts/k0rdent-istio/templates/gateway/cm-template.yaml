@@ -1,4 +1,4 @@
-{{- if .Values.isManagement }}
+{{- if and .Values.isManagement .Values.gateway.resource }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

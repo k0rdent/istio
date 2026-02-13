@@ -34,7 +34,7 @@ gateway:
   # -- Version of Istio Gateway to deploy
   version: 1.25.5
 
-  # -- Gateway resource configuration to be deployed
+  # -- Gateway resource configuration to be deployed. Can be disabled by setting `gateway.resource` to `null` or an empty value
   resource:
     apiVersion: networking.istio.io/v1
     kind: Gateway
