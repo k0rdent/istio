@@ -159,15 +159,8 @@ $(HELM): | $(LOCALBIN)
 	rm -f $(LOCALBIN)/helm-*
 	curl -s --fail $(HELM_INSTALL_SCRIPT) | USE_SUDO=false HELM_INSTALL_DIR=$(LOCALBIN) DESIRED_VERSION=$(HELM_VERSION) BINARY_NAME=helm-$(HELM_VERSION) PATH="$(LOCALBIN):$(PATH)" bash
 
-
-.PHONY: helm-plugin
-helm-plugin:
-	@if ! $(HELM) plugin list | grep -q "cm-push"; then \
-		$(HELM) plugin install https://github.com/chartmuseum/helm-push; \
-	fi
-
 .PHONY: cli-install
-cli-install: yq helm kind helm-plugin ## Install the necessary CLI tools for deployment, development and testing.
+cli-install: yq helm kind ## Install the necessary CLI tools for deployment, development and testing.
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
