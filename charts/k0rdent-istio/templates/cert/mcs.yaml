@@ -18,22 +18,44 @@ spec:
         namespace: {{ .Release.Namespace }}
         template: {{ index .Values "cert-manager" "template" }}
         values: |
-          crds:
-            enabled: true
-          {{- with .customRegistry }}
-          image:
-            repository: {{ . }}/jetstack/cert-manager-controller
-          acmesolver:
+          cert-manager:
+            crds:
+              enabled: true
+            {{- with .customRegistry }}
             image:
-              repository: {{ . }}/jetstack/cert-manager-acmesolver
-          cainjector:
-            image:
-              repository: {{ . }}/jetstack/cert-manager-cainjector
-          startupapicheck:
-            image:
-              repository: {{ . }}/jetstack/cert-manager-startupapicheck
-          webhook:
-            image:
-              repository: {{ . }}/jetstack/cert-manager-webhook
-          {{- end }}
+              repository: {{ . }}/jetstack/cert-manager-controller
+            acmesolver:
+              image:
+                repository: {{ . }}/jetstack/cert-manager-acmesolver
+            cainjector:
+              image:
+                repository: {{ . }}/jetstack/cert-manager-cainjector
+            startupapicheck:
+              image:
+                repository: {{ . }}/jetstack/cert-manager-startupapicheck
+            webhook:
+              image:
+                repository: {{ . }}/jetstack/cert-manager-webhook
+            {{- end }}
+---
+{{- if lookup "k0rdent.mirantis.com/v1beta1" "ServiceTemplate" .Values.kcm.namespace "cert-manager-1-19-3" }}
+{{- if lookup "k0rdent.mirantis.com/v1beta1" "ServiceTemplate" .Values.kcm.namespace "cert-manager-v1-16-4" }}
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplateChain
+metadata:
+  name: cert-manager-1-19-3-from-v1-16-4
+  namespace: {{ $.Values.kcm.namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+    helm.sh/hook: post-install, post-upgrade
+spec:
+  supportedTemplates:
+    - name: cert-manager-1-19-3
+    - name: cert-manager-v1-16-4
+      availableUpgrades:
+        - name: cert-manager-1-19-3
+          version: 1.19.3
+{{- end }}
+{{- end }}
 {{- end }}
