@@ -7,7 +7,7 @@ isManagement: true
 
 cert-manager:
   # -- Whether cert-manager is present in the cluster
-  template: cert-manager-v1-16-4
+  template: cert-manager-1-19-3
 
 global:
   # -- Address of the Istio CSR service provided by cert-manager
@@ -164,10 +164,10 @@ operator:
   serviceAccount:
     # -- Creates a service account for operator.
     create: true
-    
+
     # -- Annotations for the service account of operator.
     annotations: {}
-    
+
     # -- Name for the service account of operator.
     # If not set, it is generated as `k0rdent-istio-operator`.
     name: ""
@@ -194,5 +194,5 @@ cert-manager-service-template:
   repo:
     name: cert-manager
     url: https://charts.jetstack.io
-  chart: cert-manager:v1.16.4
+  chart: cert-manager:1.19.3
   namespace: kcm-system
