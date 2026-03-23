@@ -36,7 +36,7 @@ spec:
               certificate: false
               issuer: false
           global:
-          {{- with .customRegistry }}
+          {{- with $customRegistry }}
             hub: {{ . }}/istio
           {{- end }}
             multiCluster:
@@ -45,7 +45,7 @@ spec:
           cert-manager-service-template:
             enabled: false
           cert-manager-istio-csr:
-          {{- with .customRegistry }}
+          {{- with $customRegistry }}
             image:
               repository: {{ . }}/jetstack/cert-manager-istio-csr
           {{- end }}

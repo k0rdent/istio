@@ -20,7 +20,7 @@ spec:
         values: |
           crds:
             enabled: true
-          {{- with .customRegistry }}
+          {{- with $customRegistry }}
           image:
             repository: {{ . }}/jetstack/cert-manager-controller
           acmesolver:
