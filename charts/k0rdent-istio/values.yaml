@@ -7,7 +7,7 @@ isManagement: true
 
 cert-manager:
   # -- Whether cert-manager is present in the cluster
-  template: cert-manager-1-19-3
+  template: cert-manager-v1-19-3
 
 global:
   # -- Address of the Istio CSR service provided by cert-manager
@@ -194,5 +194,5 @@ cert-manager-service-template:
   repo:
     name: cert-manager
     url: https://charts.jetstack.io
-  chart: cert-manager:1.19.3
+  chart: cert-manager:v1.19.3
   namespace: kcm-system
