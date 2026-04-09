@@ -12,26 +12,9 @@ spec:
       - name: {{ .Chart.Name }}-namespace
         namespace: {{ .Values.kcm.namespace }}
         template: {{ .Chart.Name }}-namespace
----
-# This MCS needed as a workaround to propagate istio namespace to KCM Region clusters
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: MultiClusterService
-metadata:
-  name: {{ .Chart.Name }}-namespace-template-propagation
-spec:
-  clusterSelector:
-    matchLabels:
-      k0rdent.mirantis.com/kcm-region-cluster: "true"
-  serviceSpec:
-    services:
-      - name: propagation-service
-        namespace: {{ $.Release.Namespace }}
-        template: {{ .Chart.Name }}-propagation
-    templateResourceRefs:
-      - identifier: Data
-        resource:
-          apiVersion: v1
-          kind: ConfigMap
-          name: {{ .Chart.Name }}-namespace-template
-          namespace: {{ .Values.kcm.namespace }}
+        values: |
+          features:
+            namespace:
+              enabled: true
+          clusterName: {{ `{{ .Cluster.metadata.name }}` }}
 {{- end }}

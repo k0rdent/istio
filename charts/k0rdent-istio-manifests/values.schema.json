@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled"
+          ]
+        },
+        "gateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled"
+          ]
+        },
+        "propagation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled"
+          ]
+        }
+      },
+      "required": [
+        "namespace",
+        "gateway",
+        "propagation"
+      ]
+    },
+    "clusterName": {
+      "type": "string"
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "resource": {
+          "type": "object"
+        }
+      }
+    },
+    "propagation": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "data": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "required": [
+    "features",
+    "gateway",
+    "propagation"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "features": {
+          "properties": {
+            "namespace": {
+              "properties": {
+                "enabled": {
+                  "const": true
+                }
+              }
+            },
+            "gateway": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            },
+            "propagation": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "features": {
+          "properties": {
+            "namespace": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            },
+            "gateway": {
+              "properties": {
+                "enabled": {
+                  "const": true
+                }
+              }
+            },
+            "propagation": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "features": {
+          "properties": {
+            "namespace": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            },
+            "gateway": {
+              "properties": {
+                "enabled": {
+                  "const": false
+                }
+              }
+            },
+            "propagation": {
+              "properties": {
+                "enabled": {
+                  "const": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "features": {
+            "properties": {
+              "namespace": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "clusterName"
+        ],
+        "properties": {
+          "clusterName": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "features": {
+            "properties": {
+              "gateway": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "gateway": {
+            "required": [
+              "resource"
+            ],
+            "properties": {
+              "resource": {
+                "type": "object",
+                "minProperties": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "features": {
+            "properties": {
+              "propagation": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "propagation": {
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

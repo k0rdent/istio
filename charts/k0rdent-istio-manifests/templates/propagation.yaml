@@ -1,0 +1,3 @@
+{{- if .Values.features.propagation.enabled }}
+{{ .Values.propagation.data }}
+{{- end }}

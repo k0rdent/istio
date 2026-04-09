@@ -27,27 +27,13 @@ spec:
         dependsOn:
           - name: istio-gateway
             namespace: {{ .Release.Namespace }}
+        values: |
+          features:
+            gateway:
+              enabled: true
+          clusterName: {{ `{{ .Cluster.metadata.name }}` }}
+          gateway:
+            resource:
+{{ toYaml .Values.gateway.resource | indent 14 }}
       {{- end }}
----
-# This MCS needed as a workaround to propagate gateway-template to KCM Region clusters
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: MultiClusterService
-metadata:
-  name: {{ .Chart.Name }}-gateway-template-propagation
-spec:
-  clusterSelector:
-    matchLabels:
-      k0rdent.mirantis.com/kcm-region-cluster: "true"
-  serviceSpec:
-    services:
-      - name: propagation-service
-        namespace: {{ $.Release.Namespace }}
-        template: {{ .Chart.Name }}-propagation
-    templateResourceRefs:
-      - identifier: Data
-        resource:
-          apiVersion: v1
-          kind: ConfigMap
-          name: {{ .Chart.Name }}-gateway-template
-          namespace: {{ .Values.kcm.namespace }}
 {{- end }}

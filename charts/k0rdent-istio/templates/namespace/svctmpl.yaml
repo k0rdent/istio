@@ -7,11 +7,12 @@ metadata:
   annotations:
     helm.sh/resource-policy: keep
 spec:
-  resources:
-    localSourceRef:
-      kind: ConfigMap
-      name: {{ .Chart.Name }}-namespace-template
-      namespace: {{ .Values.kcm.namespace }}
-    deploymentType: Remote
-    path: ""
+  helm:
+    chartSpec:
+      chart: {{ .Chart.Name }}-manifests
+      version: {{ .Chart.Version | quote }}
+      interval: 10m0s
+      sourceRef:
+        kind: HelmRepository
+        name: {{ index .Values "k0rdent-istio" "repo" "name" }}
 {{- end }}

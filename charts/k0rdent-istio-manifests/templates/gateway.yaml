@@ -1,0 +1,15 @@
+{{- if and .Values.features.gateway.enabled .Values.gateway.resource }}
+{{- $gatewayResource := deepCopy .Values.gateway.resource }}
+{{- if and .Values.clusterName (hasKey $gatewayResource "spec") $gatewayResource.spec.servers }}
+{{- range $serverIdx, $server := $gatewayResource.spec.servers }}
+{{- if $server.hosts }}
+{{- $processedHosts := list }}
+{{- range $host := $server.hosts }}
+{{- $processedHosts = append $processedHosts ($host | replace "{clusterName}" $.Values.clusterName) }}
+{{- end }}
+{{- $_ := set $server "hosts" $processedHosts }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{ toYaml $gatewayResource }}
+{{- end }}
