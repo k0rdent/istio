@@ -28,6 +28,9 @@ jobs:
       - name: Install YQ
         uses: mikefarah/yq@v4
 
+      - name: Run chart smoke tests
+        run: bash scripts/chart_smoke_tests.sh
+
       - name: Build charts
         run: |
           mkdir build
