@@ -55,11 +55,15 @@ func GetKubeconfigFromClusterDeployment(ctx context.Context, client client.Clien
 		return nil, fmt.Errorf("failed to get kubeconfig secret name: %v", err)
 	}
 
-	return GetKubeconfigFromSecret(ctx, client, kubeconfigSecretName)
+	return GetKubeconfigFromSecretInNamespace(ctx, client, kubeconfigSecretName, cd.Namespace)
 }
 
 func GetKubeconfigFromSecret(ctx context.Context, client client.Client, secretName string) ([]byte, error) {
-	secret, err := GetSecret(ctx, client, secretName, DefaultKCMSystemNamespace)
+	return GetKubeconfigFromSecretInNamespace(ctx, client, secretName, DefaultKCMSystemNamespace)
+}
+
+func GetKubeconfigFromSecretInNamespace(ctx context.Context, client client.Client, secretName, namespace string) ([]byte, error) {
+	secret, err := GetSecret(ctx, client, secretName, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secret: %v", err)
 	}

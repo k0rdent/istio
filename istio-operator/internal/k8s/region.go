@@ -5,19 +5,15 @@ import (
 	"fmt"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // If a Credential has a non-empty region field, we assume the cluster was created in that KCM region
 func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
-	cred := new(kcmv1beta1.Credential)
-	namespacedName := types.NamespacedName{
-		Name:      cd.Spec.Credential,
-		Namespace: DefaultKCMSystemNamespace,
-	}
-
-	if err := client.Get(ctx, namespacedName, cred); err != nil {
+	cred, err := getCredentialForClusterDeployment(ctx, client, cd)
+	if err != nil {
 		return false, err
 	}
 
@@ -29,19 +25,45 @@ func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta
 }
 
 func GetKcmRegionClusterNameRelatedToClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (string, error) {
-	credList := new(kcmv1beta1.CredentialList)
-
-	if err := client.List(ctx, credList); err != nil {
+	cred, err := getCredentialForClusterDeployment(ctx, client, cd)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return "", nil
+		}
 		return "", err
 	}
 
-	for _, cred := range credList.Items {
-		if cred.Name == cd.Spec.Credential {
-			return cred.Spec.Region, nil
-		}
+	return cred.Spec.Region, nil
+}
+
+func getCredentialForClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (*kcmv1beta1.Credential, error) {
+	cred := new(kcmv1beta1.Credential)
+	sameNamespaceName := types.NamespacedName{
+		Name:      cd.Spec.Credential,
+		Namespace: cd.Namespace,
 	}
 
-	return "", nil
+	err := client.Get(ctx, sameNamespaceName, cred)
+	if err == nil {
+		return cred, nil
+	}
+	if !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+
+	if cd.Namespace == DefaultKCMSystemNamespace {
+		return nil, err
+	}
+
+	fallbackNamespacedName := types.NamespacedName{
+		Name:      cd.Spec.Credential,
+		Namespace: DefaultKCMSystemNamespace,
+	}
+	if err := client.Get(ctx, fallbackNamespacedName, cred); err != nil {
+		return nil, err
+	}
+
+	return cred, nil
 }
 
 func GetKubeconfigByRegionName(ctx context.Context, client client.Client, regionName string) ([]byte, error) {
