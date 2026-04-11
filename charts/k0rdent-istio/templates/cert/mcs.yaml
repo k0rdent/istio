@@ -12,6 +12,8 @@ spec:
   clusterSelector:
     matchLabels:
       k0rdent.mirantis.com/istio-role: member
+  dependsOn:
+    - {{ .Chart.Name }}-namespace
   serviceSpec:
     services:
       - name: cert-manager
