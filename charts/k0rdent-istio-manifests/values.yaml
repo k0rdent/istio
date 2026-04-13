@@ -1,15 +1,3 @@
-features:
-  namespace:
-    enabled: false
-  gateway:
-    enabled: false
-  propagation:
-    enabled: false
-
-clusterName: ""
-
-gateway:
-  resource: {}
-
 propagation:
+  enabled: false
   data: ""
