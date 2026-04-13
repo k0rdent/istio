@@ -13,8 +13,15 @@ spec:
         namespace: {{ .Values.kcm.namespace }}
         template: {{ .Chart.Name }}-namespace
         values: |
-          features:
-            namespace:
-              enabled: true
-          clusterName: {{ `{{ .Cluster.metadata.name }}` }}
+          propagation:
+            enabled: true
+            data: |
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: istio-system
+                annotations:
+                  helm.sh/resource-policy: keep
+                labels:
+                  topology.istio.io/network: {{ printf "%s-network" `{{ .Cluster.metadata.name }}` | quote }}
 {{- end }}

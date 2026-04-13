@@ -28,12 +28,22 @@ spec:
           - name: istio-gateway
             namespace: {{ .Release.Namespace }}
         values: |
-          features:
-            gateway:
-              enabled: true
-          clusterName: {{ `{{ .Cluster.metadata.name }}` }}
-          gateway:
-            resource:
-{{ toYaml .Values.gateway.resource | indent 14 }}
+          propagation:
+            enabled: true
+            data: |
+{{- $gatewayResource := .Values.gateway.resource }}
+{{- $processedResource := deepCopy $gatewayResource }}
+{{- if $processedResource.spec.servers }}
+{{- range $serverIdx, $server := $processedResource.spec.servers }}
+{{- if $server.hosts }}
+{{- $processedHosts := list }}
+{{- range $host := $server.hosts }}
+{{- $processedHosts = append $processedHosts ($host | replace "{clusterName}" "{{ .Cluster.metadata.name }}") }}
+{{- end }}
+{{- $_ := set $server "hosts" $processedHosts }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{ toYaml $processedResource | indent 14 }}
       {{- end }}
 {{- end }}
