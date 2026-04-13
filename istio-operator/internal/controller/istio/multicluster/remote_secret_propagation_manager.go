@@ -18,6 +18,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// mustPropagationServiceValuesYAML builds Helm values for propagation.yaml.
+// Uses a block scalar for propagation.data
+func mustPropagationServiceValuesYAML(templateResourceIdentifier string) string {
+	return fmt.Sprintf("propagation:\n  enabled: true\n  data: |\n{{ copy %q | nindent 14 }}\n", templateResourceIdentifier)
+}
+
 type RemoteSecretPropagationManager struct {
 	client client.Client
 }
@@ -85,6 +91,9 @@ func (m *RemoteSecretPropagationManager) multiClusterServiceExists(ctx context.C
 }
 
 func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
+	identifier := "Data"
+	valuesYAML := mustPropagationServiceValuesYAML(identifier)
+
 	mcs := &kcmv1beta1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetMultiClusterServiceNameHash(cd.Name, cd.Namespace),
@@ -106,11 +115,12 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 						Name:      "istio-secret-propagation",
 						Namespace: istio.IstioSystemNamespace,
 						Template:  fmt.Sprintf("%s-propagation", istio.IstioReleaseName),
+						Values:    valuesYAML,
 					},
 				},
 				TemplateResourceRefs: []addoncontrollerv1beta1.TemplateResourceRef{
 					{
-						Identifier: "Data",
+						Identifier: identifier,
 						Resource: corev1.ObjectReference{
 							APIVersion: "v1",
 							Kind:       "Secret",

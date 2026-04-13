@@ -44,6 +44,6 @@ spec:
 {{- end }}
 {{- end }}
 {{- end }}
-{{ toYaml $processedResource | indent 14 }}
+{{ toYaml $processedResource | nindent 14 }}
       {{- end }}
 {{- end }}
