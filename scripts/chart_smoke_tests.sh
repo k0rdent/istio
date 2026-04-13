@@ -10,36 +10,22 @@ echo "Running chart smoke tests"
 helm dependency update "charts/k0rdent-istio"
 helm lint --strict "charts/k0rdent-istio"
 
-helm lint --strict "charts/k0rdent-istio-manifests" \
-  --set features.namespace.enabled=true \
-  --set clusterName=test
+# Utility manifests chart: only propagation.{enabled,data}; schema requires non-empty data when enabled.
+helm lint --strict "charts/k0rdent-istio-manifests"
 
 helm lint --strict "charts/k0rdent-istio-manifests" \
-  --set features.gateway.enabled=true \
-  --set clusterName=test \
-  --set gateway.resource.apiVersion=networking.istio.io/v1 \
-  --set gateway.resource.kind=Gateway \
-  --set gateway.resource.metadata.name=test \
-  --set gateway.resource.metadata.namespace=istio-system
-
-helm lint --strict "charts/k0rdent-istio-manifests" \
-  --set features.propagation.enabled=true \
+  --set propagation.enabled=true \
   --set-string propagation.data=$'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test'
 
-if helm template smoke "charts/k0rdent-istio-manifests" >/dev/null 2>&1; then
-  echo "Expected manifests chart to fail when no features are enabled"
+if helm lint --strict "charts/k0rdent-istio-manifests" \
+  --set propagation.enabled=true \
+  --set propagation.data= >/dev/null 2>&1; then
+  echo "Expected manifests chart lint to fail when propagation is enabled but data is empty"
   exit 1
 fi
 
-if helm template smoke "charts/k0rdent-istio-manifests" \
-  --set features.namespace.enabled=true \
-  --set features.gateway.enabled=true \
-  --set clusterName=test \
-  --set gateway.resource.apiVersion=networking.istio.io/v1 \
-  --set gateway.resource.kind=Gateway \
-  --set gateway.resource.metadata.name=test \
-  --set gateway.resource.metadata.namespace=istio-system >/dev/null 2>&1; then
-  echo "Expected manifests chart to fail when multiple features are enabled"
+if helm template smoke "charts/k0rdent-istio-manifests" | grep -q '[^[:space:]]'; then
+  echo "Expected default manifests render to be whitespace-only (propagation disabled)"
   exit 1
 fi
 
@@ -49,27 +35,22 @@ prop_render="$(mktemp)"
 main_render="$(mktemp)"
 
 helm template smoke "charts/k0rdent-istio-manifests" \
-  --set features.namespace.enabled=true \
-  --set clusterName=alpha >"$ns_render"
+  --set propagation.enabled=true \
+  --set-string propagation.data=$'apiVersion: v1\nkind: Namespace\nmetadata:\n  name: istio-system\n  annotations:\n    helm.sh/resource-policy: keep\n  labels:\n    topology.istio.io/network: alpha-network' >"$ns_render"
 
 grep -q -- "kind: Namespace" "$ns_render"
-grep -q -- "name: \"istio-system\"" "$ns_render"
-grep -q -- "topology.istio.io/network: \"alpha-network\"" "$ns_render"
+grep -q -- "name: istio-system" "$ns_render"
+grep -q -- "topology.istio.io/network: alpha-network" "$ns_render"
 
 helm template smoke "charts/k0rdent-istio-manifests" \
-  --set features.gateway.enabled=true \
-  --set clusterName=edge-a \
-  --set gateway.resource.apiVersion=networking.istio.io/v1 \
-  --set gateway.resource.kind=Gateway \
-  --set gateway.resource.metadata.name=eastwest \
-  --set gateway.resource.metadata.namespace=istio-system \
-  --set gateway.resource.spec.servers[0].hosts[0]='*.{clusterName}.local' >"$gw_render"
+  --set propagation.enabled=true \
+  --set-string propagation.data=$'apiVersion: networking.istio.io/v1\nkind: Gateway\nmetadata:\n  name: eastwest\n  namespace: istio-system\nspec:\n  servers:\n    - hosts:\n        - "*.edge-a.local"' >"$gw_render"
 
 grep -q -- "kind: Gateway" "$gw_render"
-grep -q -- "- '*.edge-a.local'" "$gw_render"
+grep -Fq -- "*.edge-a.local" "$gw_render"
 
 helm template smoke "charts/k0rdent-istio-manifests" \
-  --set features.propagation.enabled=true \
+  --set propagation.enabled=true \
   --set-string propagation.data=$'apiVersion: v1\nkind: Secret\nmetadata:\n  name: copied' >"$prop_render"
 
 grep -q -- "kind: Secret" "$prop_render"
@@ -83,7 +64,7 @@ fi
 
 grep -q -- "template: k0rdent-istio-propagation" "$main_render"
 grep -q -- "templateResourceRefs:" "$main_render"
-grep -q -- "{{ copy \"Data\" }}" "$main_render"
+grep -Fq -- 'copy "Data" | nindent 14 }}' "$main_render"
 
 rm -f "$ns_render" "$gw_render" "$prop_render" "$main_render"
 
