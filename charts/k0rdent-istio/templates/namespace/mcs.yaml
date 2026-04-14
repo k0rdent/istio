@@ -11,7 +11,7 @@ spec:
     services:
       - name: {{ .Chart.Name }}-namespace
         namespace: {{ .Values.kcm.namespace }}
-        template: {{ .Chart.Name }}-namespace
+        template: {{ .Chart.Name }}-propagation
         values: |
           propagation:
             enabled: true

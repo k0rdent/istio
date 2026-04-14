@@ -23,7 +23,7 @@ spec:
       {{- if .Values.gateway.resource }}
       - name: gateway-template
         namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-gateway-template
+        template: {{ .Chart.Name }}-propagation
         dependsOn:
           - name: istio-gateway
             namespace: {{ .Release.Namespace }}

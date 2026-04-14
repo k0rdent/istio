@@ -14,23 +14,4 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: {{ .Values.istio.repo.name }}
----
-{{- if .Values.gateway.resource }}
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: ServiceTemplate
-metadata:
-  name: {{ .Chart.Name }}-gateway-template
-  namespace: {{ .Values.kcm.namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  helm:
-    chartSpec:
-      chart: {{ .Chart.Name }}-manifests
-      version: {{ .Chart.Version | quote }}
-      interval: 10m0s
-      sourceRef:
-        kind: HelmRepository
-        name: {{ index .Values "k0rdent-istio" "repo" "name" }}
-{{- end }}
 {{- end }}
