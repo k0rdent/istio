@@ -135,6 +135,12 @@ func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
 	return ok
 }
 
+// MustPropagationServiceValuesYAML builds Helm values for propagation.yaml.
+// Uses a block scalar for propagation.data.
+func MustPropagationServiceValuesYAML(templateResourceIdentifier string) string {
+	return fmt.Sprintf("propagation:\n  enabled: true\n  data: |\n{{ copy %q | nindent 14 }}\n", templateResourceIdentifier)
+}
+
 // IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.
 // Due to a bug in KCM or its upstream dependency, where some conditions are always false,
 // we cannot rely solely on the Ready condition.
