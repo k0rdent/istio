@@ -103,6 +103,7 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 					istio.IstioRoleLabel: "member",
 				},
 			},
+			DependsOn: []string{GetNetworkMultiClusterServiceName()},
 			ServiceSpec: kcmv1beta1.ServiceSpec{
 				Services: []kcmv1beta1.Service{
 					{
@@ -176,4 +177,8 @@ func GetMultiClusterServiceName(clusterName, namespace string) string {
 func GetMultiClusterServiceNameHash(clusterName, namespace string) string {
 	name := GetMultiClusterServiceName(clusterName, namespace)
 	return utils.GetNameHash("remote-secret-propagation", name)
+}
+
+func GetNetworkMultiClusterServiceName() string {
+	return fmt.Sprintf("%s-network", istio.IstioReleaseName)
 }
