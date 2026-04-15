@@ -5,14 +5,13 @@ import (
 	"fmt"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
-	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // If a Credential has a non-empty region field, we assume the cluster was created in that KCM region
 func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
-	cred := new(crds.Credential)
+	cred := new(kcmv1beta1.Credential)
 	namespacedName := types.NamespacedName{
 		Name:      cd.Spec.Credential,
 		Namespace: DefaultKCMSystemNamespace,
@@ -30,7 +29,7 @@ func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta
 }
 
 func GetKcmRegionClusterNameRelatedToClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (string, error) {
-	credList := new(crds.CredentialList)
+	credList := new(kcmv1beta1.CredentialList)
 
 	if err := client.List(ctx, credList); err != nil {
 		return "", err
@@ -50,7 +49,7 @@ func GetKubeconfigByRegionName(ctx context.Context, client client.Client, region
 		return nil, fmt.Errorf("region name is empty")
 	}
 
-	region := new(crds.Region)
+	region := new(kcmv1beta1.Region)
 	if err := client.Get(ctx, types.NamespacedName{Name: regionName}, region); err != nil {
 		return nil, fmt.Errorf("failed to get Region %s: %v", regionName, err)
 	}

@@ -6,7 +6,6 @@ import (
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
-	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
 	sveltosv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -20,7 +19,7 @@ var LocalKubeClient *KubeClient
 var scheme = runtime.NewScheme()
 
 func init() {
-	utilruntime.Must(crds.AddToScheme(scheme))
+	utilruntime.Must(kcmv1beta1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(cmv1.AddToScheme(scheme))
 	utilruntime.Must(sveltosv1beta1.AddToScheme(scheme))

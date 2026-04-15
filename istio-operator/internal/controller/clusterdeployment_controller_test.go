@@ -11,7 +11,6 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
-	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -109,12 +108,12 @@ var _ = Describe("ClusterDeployment Controller", func() {
 		}
 
 		createCred := func(credName, secretName, namespace string) {
-			cred := &crds.Credential{
+			cred := &kcmv1beta1.Credential{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      credName,
 					Namespace: namespace,
 				},
-				Spec: crds.CredentialSpec{
+				Spec: kcmv1beta1.CredentialSpec{
 					IdentityRef: &corev1.ObjectReference{
 						Name:      secretName,
 						Namespace: namespace,

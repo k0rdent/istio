@@ -33,7 +33,6 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
-	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	secretrotation "github.com/k0rdent/istio/istio-operator/internal/secret-rotation"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,6 +45,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	sveltosv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 	// +kubebuilder:scaffold:imports
@@ -57,14 +57,8 @@ var (
 )
 
 func init() {
+	utilruntime.Must(kcmv1beta1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	// Temporary workaround: we cannot upgrade the KCM library
-	// until the Istio library supports the latest Kubernetes API versions.
-	// As a workaround, we register our own schema with updated KCM CRDs.
-	utilruntime.Must(crds.AddToScheme(scheme))
-	// utilruntime.Must(kcmv1beta1.AddToScheme(scheme))
-
 	utilruntime.Must(cmv1.AddToScheme(scheme))
 	utilruntime.Must(sveltosv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
@@ -180,7 +174,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	record.InitFromRecorder(mgr.GetEventRecorderFor("istio-operator"))
+	record.InitFromRecorder(mgr.GetEventRecorder("istio-operator"))
 
 	if err = (&controller.ClusterDeploymentReconciler{
 		Client:                         mgr.GetClient(),
