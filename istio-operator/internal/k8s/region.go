@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -27,9 +26,6 @@ func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta
 func GetKcmRegionClusterNameRelatedToClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (string, error) {
 	cred, err := getCredentialForClusterDeployment(ctx, client, cd)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return "", nil
-		}
 		return "", err
 	}
 
@@ -43,23 +39,7 @@ func getCredentialForClusterDeployment(ctx context.Context, client client.Client
 		Namespace: cd.Namespace,
 	}
 
-	err := client.Get(ctx, sameNamespaceName, cred)
-	if err == nil {
-		return cred, nil
-	}
-	if !apierrors.IsNotFound(err) {
-		return nil, err
-	}
-
-	if cd.Namespace == DefaultKCMSystemNamespace {
-		return nil, err
-	}
-
-	fallbackNamespacedName := types.NamespacedName{
-		Name:      cd.Spec.Credential,
-		Namespace: DefaultKCMSystemNamespace,
-	}
-	if err := client.Get(ctx, fallbackNamespacedName, cred); err != nil {
+	if err := client.Get(ctx, sameNamespaceName, cred); err != nil {
 		return nil, err
 	}
 

@@ -104,7 +104,7 @@ func TestCreatedInKCMRegionUsesClusterDeploymentNamespace(t *testing.T) {
 	}
 }
 
-func TestCreatedInKCMRegionFallsBackToDefaultNamespace(t *testing.T) {
+func TestCreatedInKCMRegionFailsWhenCredentialMissingInClusterDeploymentNamespace(t *testing.T) {
 	t.Parallel()
 
 	cd := &kcmv1beta1.ClusterDeployment{
@@ -117,25 +117,15 @@ func TestCreatedInKCMRegionFallsBackToDefaultNamespace(t *testing.T) {
 		},
 	}
 
-	fallbackCredential := &kcmv1beta1.Credential{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-credential",
-			Namespace: DefaultKCMSystemNamespace,
-		},
-		Spec: kcmv1beta1.CredentialSpec{
-			Region: "regional-cluster",
-		},
-	}
-
-	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cd, fallbackCredential).Build()
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cd).Build()
 
 	createdInRegion, err := CreatedInKCMRegion(context.Background(), c, cd)
-	if err != nil {
-		t.Fatalf("CreatedInKCMRegion returned error: %v", err)
+	if err == nil {
+		t.Fatalf("expected CreatedInKCMRegion to fail when credential is missing in ClusterDeployment namespace")
 	}
 
-	if !createdInRegion {
-		t.Fatalf("expected CreatedInKCMRegion to return true for fallback credential")
+	if createdInRegion {
+		t.Fatalf("expected CreatedInKCMRegion to return false on missing credential")
 	}
 }
 
@@ -184,7 +174,7 @@ func TestGetKcmRegionClusterNameRelatedToClusterDeploymentPrefersClusterNamespac
 	}
 }
 
-func TestGetKcmRegionClusterNameRelatedToClusterDeploymentFallsBackToDefaultNamespace(t *testing.T) {
+func TestGetKcmRegionClusterNameRelatedToClusterDeploymentFailsWhenCredentialMissingInClusterDeploymentNamespace(t *testing.T) {
 	t.Parallel()
 
 	cd := &kcmv1beta1.ClusterDeployment{
@@ -197,24 +187,14 @@ func TestGetKcmRegionClusterNameRelatedToClusterDeploymentFallsBackToDefaultName
 		},
 	}
 
-	fallbackCredential := &kcmv1beta1.Credential{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-credential",
-			Namespace: DefaultKCMSystemNamespace,
-		},
-		Spec: kcmv1beta1.CredentialSpec{
-			Region: "fallback-region",
-		},
-	}
-
-	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cd, fallbackCredential).Build()
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cd).Build()
 
 	regionName, err := GetKcmRegionClusterNameRelatedToClusterDeployment(context.Background(), c, cd)
-	if err != nil {
-		t.Fatalf("GetKcmRegionClusterNameRelatedToClusterDeployment returned error: %v", err)
+	if err == nil {
+		t.Fatalf("expected GetKcmRegionClusterNameRelatedToClusterDeployment to fail when credential is missing in ClusterDeployment namespace")
 	}
 
-	if regionName != "fallback-region" {
-		t.Fatalf("expected fallback-region, got %q", regionName)
+	if regionName != "" {
+		t.Fatalf("expected empty region on missing credential, got %q", regionName)
 	}
 }
