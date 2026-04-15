@@ -26,16 +26,15 @@ import (
 
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
-	crds "github.com/k0rdent/istio/istio-operator/internal/crd"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	k8sevents "k8s.io/client-go/tools/events"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	k8srecord "k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -67,12 +66,12 @@ func TestControllers(t *testing.T) {
 var _ = AfterEach(func() {
 	By("Cleanup all objects")
 	objects := []client.Object{
-		&kcmv1beta1.ClusterDeployment{},
 		&kcmv1beta1.MultiClusterService{},
+		&kcmv1beta1.ClusterDeployment{},
+		&kcmv1beta1.Credential{},
+		&kcmv1beta1.Region{},
 		&corev1.ConfigMap{},
 		&corev1.Secret{},
-		&crds.Credential{},
-		&crds.Region{},
 	}
 
 	namespaces := []string{DefaultNamespace, ReleaseNamespace, k8s.DefaultKCMSystemNamespace}
@@ -86,7 +85,7 @@ var _ = AfterEach(func() {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
-	record.DefaultRecorder = new(k8srecord.FakeRecorder)
+	record.DefaultRecorder = new(k8sevents.FakeRecorder)
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
@@ -110,8 +109,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	// err = kcmv1beta1.AddToScheme(scheme.Scheme)
-	err = crds.AddToScheme(scheme.Scheme)
+	err = kcmv1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = cmv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
