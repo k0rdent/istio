@@ -9,7 +9,7 @@ metadata:
 spec:
   helm:
     chartSpec:
-      chart: {{ .Chart.Name }}-manifests
+      chart: {{ .Chart.Name }}-propagation
       version: {{ .Chart.Version | quote }}
       interval: 10m0s
       sourceRef:

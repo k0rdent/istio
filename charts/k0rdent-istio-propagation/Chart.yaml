@@ -1,5 +1,5 @@
 apiVersion: v2
-name: k0rdent-istio-manifests
+name: k0rdent-istio-propagation
 description: Utility manifests chart used by k0rdent-istio ServiceTemplates
 type: application
 version: "0.4.2"
