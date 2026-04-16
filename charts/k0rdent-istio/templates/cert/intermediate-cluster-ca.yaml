@@ -1,10 +1,11 @@
 {{ range $name, $value := .Values.intermediateCAs }}
 {{- if $value.certificate }}
+{{- $hash := printf "%s-%s" $value.namespace $name | adler32sum }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+  name: istio-ca-certificate-{{ $hash }}
   namespace: {{ $.Release.Namespace }}
 spec:
   isCA: true
@@ -12,7 +13,7 @@ spec:
   subject:
     organizations:
       - Istio
-  secretName: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+  secretName: istio-ca-secret-{{ $hash }}
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -22,14 +23,15 @@ spec:
     group: cert-manager.io
 {{- end }}
 {{- if $value.issuer }}
+{{- $hash := printf "%s-%s" $value.namespace $name | adler32sum }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+  name: istio-ca-issuer-{{ $hash }}
   namespace: {{ $.Release.Namespace }}
 spec:
   ca:
-    secretName: {{ $.Chart.Name }}-{{ $value.namespace }}-{{ $name }}-ca
+    secretName: istio-ca-secret-{{ $hash }}
 {{- end }}
 {{- end }}

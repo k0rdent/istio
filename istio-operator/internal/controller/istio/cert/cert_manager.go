@@ -88,6 +88,7 @@ func (cm *CertManager) createCertificate(ctx context.Context, cert *cmv1.Certifi
 
 func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeployment) *cmv1.Certificate {
 	certName := GetCertName(cd.Name, cd.Namespace)
+	caSecretName := GetCASecretName(cd.Name, cd.Namespace)
 
 	return &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -107,7 +108,7 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 				Algorithm: cmv1.ECDSAKeyAlgorithm,
 				Size:      521,
 			},
-			SecretName: certName,
+			SecretName: caSecretName,
 			IssuerRef: cmmetav1.ObjectReference{
 				Name:  fmt.Sprintf("%s-root", istio.IstioReleaseName),
 				Kind:  "Issuer",
@@ -139,5 +140,16 @@ func (cm *CertManager) sendDeletionEvent(req ctrl.Request) {
 }
 
 func GetCertName(clusterName, namespace string) string {
-	return fmt.Sprintf("%s-%s-%s-ca", istio.IstioReleaseName, namespace, clusterName)
+	name := fmt.Sprintf("%s-%s", namespace, clusterName)
+	return utils.GetNameHash("istio-ca-certificate", name)
+}
+
+func GetCASecretName(clusterName, namespace string) string {
+	name := fmt.Sprintf("%s-%s", namespace, clusterName)
+	return utils.GetNameHash("istio-ca-secret", name)
+}
+
+func GetCAIssuerName(clusterName, namespace string) string {
+	name := fmt.Sprintf("%s-%s", namespace, clusterName)
+	return utils.GetNameHash("istio-ca-issuer", name)
 }

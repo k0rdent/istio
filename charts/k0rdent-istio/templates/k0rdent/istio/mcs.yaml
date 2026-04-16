@@ -51,7 +51,7 @@ spec:
             app:
               certmanager:
                 issuer:
-                  name: k0rdent-istio-{{ `{{ .Cluster.metadata.namespace }}` }}-{{ `{{ .Cluster.metadata.name }}` }}-ca
+                  name: istio-ca-issuer-{{ `{{ printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name | adler32sum }}` }}
               server:
                 clusterID: {{ `{{ .Cluster.metadata.name }}` }}
 {{- end }}
