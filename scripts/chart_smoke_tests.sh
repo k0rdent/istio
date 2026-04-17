@@ -63,8 +63,6 @@ if grep -q -- "localSourceRef:" "$main_render"; then
 fi
 
 grep -q -- "template: k0rdent-istio-propagation" "$main_render"
-grep -q -- "templateResourceRefs:" "$main_render"
-grep -Fq -- 'copy "Data" | nindent 14 }}' "$main_render"
 
 rm -f "$ns_render" "$gw_render" "$prop_render" "$main_render"
 
