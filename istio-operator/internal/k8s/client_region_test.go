@@ -61,43 +61,17 @@ func TestGetKubeconfigFromClusterDeploymentUsesClusterDeploymentNamespace(t *tes
 func TestCreatedInKCMRegionUsesClusterDeploymentNamespace(t *testing.T) {
 	t.Parallel()
 
-	cdNamespace := "tenant-b"
-	credentialName := "demo-credential"
-
 	cd := &kcmv1beta1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo",
-			Namespace: cdNamespace,
+			Namespace: "tenant-b",
 		},
-		Spec: kcmv1beta1.ClusterDeploymentSpec{
-			Credential: credentialName,
-		},
-	}
-
-	tenantCredential := &kcmv1beta1.Credential{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      credentialName,
-			Namespace: cdNamespace,
-		},
-		Spec: kcmv1beta1.CredentialSpec{
+		Status: kcmv1beta1.ClusterDeploymentStatus{
 			Region: "regional-cluster",
 		},
 	}
 
-	defaultCredential := &kcmv1beta1.Credential{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      credentialName,
-			Namespace: DefaultKCMSystemNamespace,
-		},
-		Spec: kcmv1beta1.CredentialSpec{},
-	}
-
-	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cd, tenantCredential, defaultCredential).Build()
-
-	createdInRegion, err := CreatedInKCMRegion(context.Background(), c, cd)
-	if err != nil {
-		t.Fatalf("CreatedInKCMRegion returned error: %v", err)
-	}
+	createdInRegion := CreatedInKCMRegion(cd)
 
 	if !createdInRegion {
 		t.Fatalf("expected CreatedInKCMRegion to return true")
@@ -112,20 +86,12 @@ func TestCreatedInKCMRegionFailsWhenCredentialMissingInClusterDeploymentNamespac
 			Name:      "demo",
 			Namespace: "tenant-c",
 		},
-		Spec: kcmv1beta1.ClusterDeploymentSpec{
-			Credential: "demo-credential",
-		},
 	}
 
-	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cd).Build()
-
-	createdInRegion, err := CreatedInKCMRegion(context.Background(), c, cd)
-	if err == nil {
-		t.Fatalf("expected CreatedInKCMRegion to fail when credential is missing in ClusterDeployment namespace")
-	}
+	createdInRegion := CreatedInKCMRegion(cd)
 
 	if createdInRegion {
-		t.Fatalf("expected CreatedInKCMRegion to return false on missing credential")
+		t.Fatalf("expected CreatedInKCMRegion to return false when status region is empty")
 	}
 }
 

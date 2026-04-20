@@ -80,10 +80,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		}
 	}
 
-	createdInKCMRegion, err := k8s.CreatedInKCMRegion(ctx, rs.client, clusterDeployment)
-	if err != nil {
-		return fmt.Errorf("failed to determine cluster region: %v", err)
-	}
+	createdInKCMRegion := k8s.CreatedInKCMRegion(clusterDeployment)
 
 	regionKubeClient := rs.client
 

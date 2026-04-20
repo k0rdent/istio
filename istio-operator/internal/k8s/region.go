@@ -9,18 +9,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// If a Credential has a non-empty region field, we assume the cluster was created in that KCM region
-func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
-	cred, err := getCredentialForClusterDeployment(ctx, client, cd)
-	if err != nil {
-		return false, err
-	}
-
-	if cred.Spec.Region != "" {
-		return true, nil
-	}
-
-	return false, nil
+// If ClusterDeployment status has a non-empty region field,
+// we assume the cluster was created in that KCM region.
+func CreatedInKCMRegion(cd *kcmv1beta1.ClusterDeployment) bool {
+	return cd.Status.Region != ""
 }
 
 func GetKcmRegionClusterNameRelatedToClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (string, error) {
