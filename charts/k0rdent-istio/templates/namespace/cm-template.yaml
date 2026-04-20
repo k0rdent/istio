@@ -1,0 +1,20 @@
+{{- if .Values.isManagement }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-namespace-template
+  namespace: {{ .Values.kcm.namespace }}
+  annotations:
+    projectsveltos.io/template: "true"
+data:
+  namespace.yaml: |
+    ---
+    kind: Namespace
+    apiVersion: v1
+    metadata:
+      name: istio-system
+      annotations:
+        helm.sh/resource-policy: keep
+      labels:
+        topology.istio.io/network: {{ `{{ .Cluster.metadata.name }}` }}-network
+{{- end }}

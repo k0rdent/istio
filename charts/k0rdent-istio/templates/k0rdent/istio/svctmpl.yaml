@@ -1,19 +1,85 @@
 {{- if .Values.isManagement }}
-{{- $version := .Chart.Version | replace "." "-" }}
+{{- $chartVersion := .Chart.Version | replace "." "-" }}
+{{- $templates := list
+  (dict
+    "name" (printf "%s-%s" .Chart.Name $chartVersion)
+    "prefix" (printf "%s-" .Chart.Name)
+    "specType" "helm"
+    "chart" .Chart.Name
+    "version" .Chart.Version
+    "repo" (index .Values "k0rdent-istio" "repo" "name")
+  )
+  (dict
+    "name" (printf "%s-gateway-%s" .Chart.Name $chartVersion)
+    "prefix" (printf "%s-gateway-" .Chart.Name)
+    "specType" "helm"
+    "chart" "gateway"
+    "version" .Values.gateway.version
+    "repo" .Values.istio.repo.name
+  )
+  (dict
+    "name" (printf "%s-propagation-%s" .Chart.Name $chartVersion)
+    "prefix" (printf "%s-propagation" .Chart.Name)
+    "specType" "helm"
+    "chart" (printf "%s-propagation" .Chart.Name)
+    "version" .Chart.Version
+    "repo" (index .Values "k0rdent-istio" "repo" "name")
+  )
+  (dict
+    "name" (printf "%s-namespace-%s" .Chart.Name $chartVersion)
+    "prefix" (printf "%s-namespace" .Chart.Name)
+    "specType" "resources"
+    "version" .Chart.Version
+    "configMapName" (printf "%s-namespace-template" .Chart.Name)
+  )
+}}
+{{- range $templateDef := $templates }}
+---
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: ServiceTemplate
 metadata:
-  name: {{ .Chart.Name }}-{{ $version }}
-  namespace: {{ .Values.kcm.namespace }}
+  name: {{ $templateDef.name }}
+  namespace: {{ $.Values.kcm.namespace }}
   annotations:
     helm.sh/resource-policy: keep
 spec:
+  {{- if eq $templateDef.specType "helm" }}
   helm:
     chartSpec:
-      chart: {{ .Chart.Name }}
-      version: {{ $.Chart.Version | quote }}
+      chart: {{ $templateDef.chart }}
+      version: {{ $templateDef.version | quote }}
       interval: 10m0s
       sourceRef:
         kind: HelmRepository
-        name: {{ index .Values "k0rdent-istio" "repo" "name" }}
+        name: {{ $templateDef.repo }}
+  {{- else }}
+  resources:
+    localSourceRef:
+      kind: ConfigMap
+      name: {{ $templateDef.configMapName }}
+      namespace: {{ $.Values.kcm.namespace }}
+    deploymentType: Remote
+    path: ""
+  {{- end }}
+---
+apiVersion: k0rdent.mirantis.com/v1beta1
+kind: ServiceTemplateChain
+metadata:
+  name: {{ $templateDef.name }}
+  namespace: {{ $.Values.kcm.namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  supportedTemplates:
+    - name: {{ $templateDef.name }}
+    {{- range $template := (lookup "k0rdent.mirantis.com/v1beta1" "ServiceTemplate" $.Values.kcm.namespace "").items }}
+      {{- $oldName := $template.metadata.name }}
+      {{- if and ($oldName | hasPrefix $templateDef.prefix) (ne $oldName $templateDef.name) (or $template.spec.helm $template.spec.resources) }}
+    - name: {{ $oldName }}
+      availableUpgrades:
+        - name: {{ $templateDef.name }}
+          version: {{ $templateDef.version | quote }}
+      {{- end }}
+    {{- end }}
+{{- end }}
 {{- end }}

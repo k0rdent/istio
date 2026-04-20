@@ -1,5 +1,5 @@
 {{- if .Values.isManagement }}
-{{- $version := .Values.gateway.version | replace "." "-" }}
+{{- $chartVersion := .Chart.Version | replace "." "-" }}
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
@@ -14,7 +14,7 @@ spec:
     services:
       - name: istio-gateway
         namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-gateway-{{ $version }}
+        template: {{ .Chart.Name }}-gateway-{{ $chartVersion }}
         values: |
           networkGateway: {{ `{{ .Cluster.metadata.name }}` }}-network
           labels:
@@ -23,7 +23,7 @@ spec:
       {{- if .Values.gateway.resource }}
       - name: gateway-template
         namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-propagation
+        template: {{ .Chart.Name }}-propagation-{{ $chartVersion }}
         dependsOn:
           - name: istio-gateway
             namespace: {{ .Release.Namespace }}
