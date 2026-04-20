@@ -19,7 +19,9 @@ spec:
             enabled: {{`{{ $eligible }}`}}
             data: |
               {{`{{ if $eligible }}`}}
-              {{`{{ removeField "ConfigMap" "metadata.ownerReferences" | nindent 14 }}`}}
+              {{`{{- $copied := removeField "ConfigMap" "metadata.ownerReferences" -}}`}}
+              {{`{{- $copied := replace "{{ .Cluster.metadata.name }}" "{{ \"{{ .Cluster.metadata.name }}\" }}" $copied -}}`}}
+              {{`{{ $copied | nindent 14 }}`}}
               {{`{{ end }}`}}
       - name: {{ .Chart.Name }}-namespace
         namespace: {{ .Values.kcm.namespace }}
