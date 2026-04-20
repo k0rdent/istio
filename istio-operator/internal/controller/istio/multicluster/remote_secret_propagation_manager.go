@@ -116,13 +116,13 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 					{
 						Name:      remoteSecretName,
 						Namespace: istio.IstioSystemNamespace,
-						Template:  fmt.Sprintf("%s-propagation", istio.IstioReleaseName),
+						Template:  istio.ServiceTemplateName("propagation"),
 						Values:    remoteValuesYAML,
 					},
 					{
 						Name:      caSecretName,
 						Namespace: istio.IstioSystemNamespace,
-						Template:  fmt.Sprintf("%s-propagation", istio.IstioReleaseName),
+						Template:  istio.ServiceTemplateName("propagation"),
 						Values:    caValuesYAML,
 					},
 				},
