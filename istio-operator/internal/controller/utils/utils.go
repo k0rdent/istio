@@ -149,13 +149,14 @@ func MustPropagationServiceValuesYAML(templateResourceIdentifier string) string 
 // The target cluster hash is derived from the propagated source secret name suffix,
 // so values do not need a separately injected hash literal.
 func MustScopedCAPropagationServiceValuesYAML(templateResourceIdentifier, templateResourceName string) string {
-	return fmt.Sprintf(`propagation:
-  enabled: {{ or (eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels %q) "true")) }}
+	return fmt.Sprintf(`{{- $eligible := or (eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels %q) "true")) }}
+propagation:
+  enabled: {{ $eligible }}
   data: |
-{{ if or (eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels %q) "true")) }}
+{{ if $eligible }}
 {{ copy %q | nindent 14 }}
 {{ end }}
-`, templateResourceName, "k0rdent.mirantis.com/kcm-region-cluster", templateResourceName, "k0rdent.mirantis.com/kcm-region-cluster", templateResourceIdentifier)
+`, templateResourceName, "k0rdent.mirantis.com/kcm-region-cluster", templateResourceIdentifier)
 }
 
 // IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.

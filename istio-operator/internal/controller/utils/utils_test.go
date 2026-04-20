@@ -9,9 +9,10 @@ func TestMustScopedCAPropagationServiceValuesYAML_BaseStructure(t *testing.T) {
 	values := MustScopedCAPropagationServiceValuesYAML("CASecretData", "istio-ca-secret-2484144794")
 
 	assertContainsAll(t, values,
-		`enabled: {{ or (eq (adler32sum (printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" "istio-ca-secret-2484144794"))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels "k0rdent.mirantis.com/kcm-region-cluster") "true")) }}`,
+		`{{- $eligible := or (eq (adler32sum (printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" "istio-ca-secret-2484144794"))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels "k0rdent.mirantis.com/kcm-region-cluster") "true")) }}`,
+		`enabled: {{ $eligible }}`,
 		`data: |`,
-		`{{ if or (eq (adler32sum (printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" "istio-ca-secret-2484144794"))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels "k0rdent.mirantis.com/kcm-region-cluster") "true")) }}`,
+		`{{ if $eligible }}`,
 		`{{ copy "CASecretData" | nindent 14 }}`,
 		`{{ end }}`,
 	)
@@ -32,8 +33,9 @@ func TestMustScopedCAPropagationServiceValuesYAML_DifferentInputs(t *testing.T) 
 		t.Run(tt.name, func(t *testing.T) {
 			values := MustScopedCAPropagationServiceValuesYAML(tt.identifier, tt.secretName)
 			assertContainsAll(t, values,
-				`enabled: {{ or (eq (adler32sum (printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" "`+tt.secretName+`")))`,
-				`{{ if or (eq (adler32sum (printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" "`+tt.secretName+`")))`,
+				`{{- $eligible := or (eq (adler32sum (printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" "`+tt.secretName+`")))`,
+				`enabled: {{ $eligible }}`,
+				`{{ if $eligible }}`,
 				`index .Cluster.metadata.labels "k0rdent.mirantis.com/kcm-region-cluster"`,
 				`{{ copy "`+tt.identifier+`" | nindent 14 }}`,
 			)
