@@ -1,19 +1,20 @@
-{{ range $name, $value := .Values.intermediateCAs }}
-{{- if $value.certificate }}
-{{- $hash := printf "%s-%s" $value.namespace $name | adler32sum }}
+{{- $csrIssuerName := index $.Values "cert-manager-istio-csr" "app" "certmanager" "issuer" "name" }}
+{{- $suffix := replace "istio-ca-issuer-" "" $csrIssuerName }}
+{{- $clusterID := index $.Values "cert-manager-istio-csr" "app" "server" "clusterID" }}
+{{- if .Values.intermediateCA.certificate }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: istio-ca-certificate-{{ $hash }}
+  name: istio-ca-certificate-{{ $suffix }}
   namespace: {{ $.Release.Namespace }}
 spec:
   isCA: true
-  commonName: {{ $name }} CA
+  commonName: {{ $clusterID }} CA
   subject:
     organizations:
       - Istio
-  secretName: istio-ca-secret-{{ $hash }}
+  secretName: istio-ca-secret-{{ $suffix }}
   privateKey:
     algorithm: ECDSA
     size: 256
@@ -22,16 +23,14 @@ spec:
     kind: Issuer
     group: cert-manager.io
 {{- end }}
-{{- if $value.issuer }}
-{{- $hash := printf "%s-%s" $value.namespace $name | adler32sum }}
+{{- if .Values.intermediateCA.issuer }}
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: istio-ca-issuer-{{ $hash }}
+  name: istio-ca-issuer-{{ $suffix }}
   namespace: {{ $.Release.Namespace }}
 spec:
   ca:
-    secretName: istio-ca-secret-{{ $hash }}
-{{- end }}
+    secretName: istio-ca-secret-{{ $suffix }}
 {{- end }}

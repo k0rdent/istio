@@ -26,14 +26,9 @@ spec:
           rootCA:
             enabled: false
           isManagement: false
-          intermediateCAs:
-            {{ `{{ .Cluster.metadata.name }}` }}:
-              namespace: {{ `{{ .Cluster.metadata.namespace }}` }}
-              certificate: false
-              issuer: true
-            management:
-              certificate: false
-              issuer: false
+          intermediateCA:
+            certificate: false
+            issuer: true
           global:
           {{- with $customRegistry }}
             hub: {{ . }}/istio
