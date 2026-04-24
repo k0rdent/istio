@@ -9,39 +9,33 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// If a Credential has a non-empty region field, we assume the cluster was created in that KCM region
-func CreatedInKCMRegion(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (bool, error) {
-	cred := new(kcmv1beta1.Credential)
-	namespacedName := types.NamespacedName{
-		Name:      cd.Spec.Credential,
-		Namespace: DefaultKCMSystemNamespace,
-	}
-
-	if err := client.Get(ctx, namespacedName, cred); err != nil {
-		return false, err
-	}
-
-	if cred.Spec.Region != "" {
-		return true, nil
-	}
-
-	return false, nil
+// If ClusterDeployment status has a non-empty region field,
+// we assume the cluster was created in that KCM region.
+func CreatedInKCMRegion(cd *kcmv1beta1.ClusterDeployment) bool {
+	return cd.Status.Region != ""
 }
 
 func GetKcmRegionClusterNameRelatedToClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (string, error) {
-	credList := new(kcmv1beta1.CredentialList)
-
-	if err := client.List(ctx, credList); err != nil {
+	cred, err := getCredentialForClusterDeployment(ctx, client, cd)
+	if err != nil {
 		return "", err
 	}
 
-	for _, cred := range credList.Items {
-		if cred.Name == cd.Spec.Credential {
-			return cred.Spec.Region, nil
-		}
+	return cred.Spec.Region, nil
+}
+
+func getCredentialForClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) (*kcmv1beta1.Credential, error) {
+	cred := new(kcmv1beta1.Credential)
+	sameNamespaceName := types.NamespacedName{
+		Name:      cd.Spec.Credential,
+		Namespace: cd.Namespace,
 	}
 
-	return "", nil
+	if err := client.Get(ctx, sameNamespaceName, cred); err != nil {
+		return nil, err
+	}
+
+	return cred, nil
 }
 
 func GetKubeconfigByRegionName(ctx context.Context, client client.Client, regionName string) ([]byte, error) {

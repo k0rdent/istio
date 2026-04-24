@@ -1,4 +1,5 @@
 {{- if .Values.isManagement }}
+{{- $chartVersion := .Chart.Version | replace "." "-" }}
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
@@ -9,26 +10,27 @@ spec:
       k0rdent.mirantis.com/istio-role: member
   serviceSpec:
     services:
+      - name: {{ .Chart.Name }}-namespace-cm
+        namespace: {{ .Values.kcm.namespace }}
+        template: {{ .Chart.Name }}-propagation-{{ $chartVersion }}
+        values: |
+          {{`{{- $eligible := and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels "k0rdent.mirantis.com/kcm-region-cluster") "true") }}`}}
+          propagation:
+            enabled: {{`{{ $eligible }}`}}
+            data: |
+              {{`{{ if $eligible }}`}}
+              {{`{{- $copied := removeField "ConfigMap" "metadata.ownerReferences" -}}`}}
+              {{`{{- $copied := replace "{{ .Cluster.metadata.name }}" "{{ \"{{ .Cluster.metadata.name }}\" }}" $copied -}}`}}
+              {{`{{ $copied | nindent 14 }}`}}
+              {{`{{ end }}`}}
       - name: {{ .Chart.Name }}-namespace
         namespace: {{ .Values.kcm.namespace }}
-        template: {{ .Chart.Name }}-namespace
----
-# This MCS needed as a workaround to propagate istio namespace to KCM Region clusters
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: MultiClusterService
-metadata:
-  name: {{ .Chart.Name }}-namespace-template-propagation
-spec:
-  clusterSelector:
-    matchLabels:
-      k0rdent.mirantis.com/kcm-region-cluster: "true"
-  serviceSpec:
-    services:
-      - name: propagation-service
-        namespace: {{ $.Release.Namespace }}
-        template: {{ .Chart.Name }}-propagation
+        template: {{ .Chart.Name }}-namespace-{{ $chartVersion }}
+        dependsOn:
+          - name: {{ .Chart.Name }}-namespace-cm
+            namespace: {{ .Values.kcm.namespace }}
     templateResourceRefs:
-      - identifier: Data
+      - identifier: ConfigMap
         resource:
           apiVersion: v1
           kind: ConfigMap

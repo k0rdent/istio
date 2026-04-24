@@ -1,5 +1,5 @@
 {{- if .Values.isManagement }}
-{{- $version := .Values.gateway.version | replace "." "-" }}
+{{- $chartVersion := .Chart.Version | replace "." "-" }}
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
@@ -14,7 +14,7 @@ spec:
     services:
       - name: istio-gateway
         namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-gateway-{{ $version }}
+        template: {{ .Chart.Name }}-gateway-{{ $chartVersion }}
         values: |
           networkGateway: {{ `{{ .Cluster.metadata.name }}` }}-network
           labels:
@@ -23,31 +23,27 @@ spec:
       {{- if .Values.gateway.resource }}
       - name: gateway-template
         namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-gateway-template
+        template: {{ .Chart.Name }}-propagation-{{ $chartVersion }}
         dependsOn:
           - name: istio-gateway
             namespace: {{ .Release.Namespace }}
+        values: |
+          propagation:
+            enabled: true
+            data: |
+{{- $gatewayResource := .Values.gateway.resource }}
+{{- $processedResource := deepCopy $gatewayResource }}
+{{- if $processedResource.spec.servers }}
+{{- range $serverIdx, $server := $processedResource.spec.servers }}
+{{- if $server.hosts }}
+{{- $processedHosts := list }}
+{{- range $host := $server.hosts }}
+{{- $processedHosts = append $processedHosts ($host | replace "{clusterName}" "{{ .Cluster.metadata.name }}") }}
+{{- end }}
+{{- $_ := set $server "hosts" $processedHosts }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{ toYaml $processedResource | nindent 14 }}
       {{- end }}
----
-# This MCS needed as a workaround to propagate gateway-template to KCM Region clusters
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: MultiClusterService
-metadata:
-  name: {{ .Chart.Name }}-gateway-template-propagation
-spec:
-  clusterSelector:
-    matchLabels:
-      k0rdent.mirantis.com/kcm-region-cluster: "true"
-  serviceSpec:
-    services:
-      - name: propagation-service
-        namespace: {{ $.Release.Namespace }}
-        template: {{ .Chart.Name }}-propagation
-    templateResourceRefs:
-      - identifier: Data
-        resource:
-          apiVersion: v1
-          kind: ConfigMap
-          name: {{ .Chart.Name }}-gateway-template
-          namespace: {{ .Values.kcm.namespace }}
 {{- end }}

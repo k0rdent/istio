@@ -66,16 +66,12 @@ rootCA:
   # -- Enable creation of the root certificate authority
   enabled: true
 
-intermediateCAs:
-  management:
-    # -- Namespace where the management intermediate CA will be created
-    namespace: kcm-system
+intermediateCA:
+  # -- Whether to issue an intermediate CA certificate
+  certificate: true
 
-    # -- Whether to issue an intermediate CA certificate
-    certificate: true
-
-    # -- Whether to create an Issuer resource for this intermediate CA
-    issuer: true
+  # -- Whether to create an Issuer resource for this intermediate CA
+  issuer: true
 
 cert-manager-istio-csr:
   app:
@@ -85,8 +81,10 @@ cert-manager-istio-csr:
         - cert-manager-istio-csr.istio-system.svc
     certmanager:
       issuer:
-        # -- Reference to the cert-manager Issuer for Istio certificates
-        name: k0rdent-istio-kcm-system-management-ca
+        # -- Reference to the cert-manager Issuer for Istio certificates.
+        # For management, the chart creates a stable issuer (istio-ca-issuer-management) with associated resources.
+        # For child clusters, the issuer name suffix is derived from cluster namespace and name via adler32sum (in MCS). The istio-operator takes care of creating and propagating the associated resources.
+        name: istio-ca-issuer-management
         kind: Issuer
         group: cert-manager.io
     server:

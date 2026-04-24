@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
-	"hash/fnv"
+	"hash/adler32"
 	"strconv"
 	"strings"
 
@@ -111,10 +111,14 @@ func IsAdopted(cluster *kcmv1beta1.ClusterDeployment) bool {
 }
 
 func GetNameHash(prefix, name string) string {
-	h := fnv.New32a()
+	return fmt.Sprintf("%s-%s", prefix, GetHash(name))
+}
+
+func GetHash(name string) string {
+	h := adler32.New()
 	h.Write([]byte(name))
 
-	return fmt.Sprintf("%s-%x", prefix, h.Sum32())
+	return fmt.Sprintf("%d", h.Sum32())
 }
 
 func IsResourceExists(ctx context.Context, client client.Client, obj client.Object, name, namespace string) (bool, error) {
@@ -133,6 +137,26 @@ func IsResourceExists(ctx context.Context, client client.Client, obj client.Obje
 func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
 	_, ok := cd.Labels[IstioMeshLabel]
 	return ok
+}
+
+// MustPropagationServiceValuesYAML builds Helm values for propagation.yaml.
+// Uses a block scalar for propagation.data.
+func MustPropagationServiceValuesYAML(templateResourceIdentifier string) string {
+	return fmt.Sprintf("propagation:\n  enabled: true\n  data: |\n{{ copy %q | nindent 14 }}\n", templateResourceIdentifier)
+}
+
+// MustScopedCAPropagationServiceValuesYAML builds Helm values for propagation.yaml.
+// The target cluster hash is derived from the propagated source secret name suffix,
+// so values do not need a separately injected hash literal.
+func MustScopedCAPropagationServiceValuesYAML(templateResourceIdentifier, templateResourceName string) string {
+	return fmt.Sprintf(`{{- $eligible := or (eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels %q) "true")) }}
+propagation:
+  enabled: {{ $eligible }}
+  data: |
+{{ if $eligible }}
+{{ copy %q | nindent 14 }}
+{{ end }}
+`, templateResourceName, "k0rdent.mirantis.com/kcm-region-cluster", templateResourceIdentifier)
 }
 
 // IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.

@@ -80,10 +80,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		}
 	}
 
-	createdInKCMRegion, err := k8s.CreatedInKCMRegion(ctx, rs.client, clusterDeployment)
-	if err != nil {
-		return fmt.Errorf("failed to determine cluster region: %v", err)
-	}
+	createdInKCMRegion := k8s.CreatedInKCMRegion(clusterDeployment)
 
 	regionKubeClient := rs.client
 
@@ -115,7 +112,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 		return fmt.Errorf("failed to get kubeconfig secret name: %v", err)
 	}
 
-	kubeconfig, err := k8s.GetKubeconfigFromSecret(ctx, regionKubeClient, kubeconfigSecretName)
+	kubeconfig, err := k8s.GetKubeconfigFromSecretInNamespace(ctx, regionKubeClient, kubeconfigSecretName, clusterDeployment.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to get kubeconfig from secret: %v", err)
 	}

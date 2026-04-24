@@ -6,6 +6,7 @@ import (
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
@@ -85,6 +86,15 @@ func (m *RemoteSecretPropagationManager) multiClusterServiceExists(ctx context.C
 }
 
 func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
+	// One per-cluster MCS ships both discovery and CA material.
+	remoteIdentifier := "RemoteSecretData"
+	caIdentifier := "CASecretData"
+	remoteValuesYAML := utils.MustPropagationServiceValuesYAML(remoteIdentifier)
+
+	remoteSecretName := remotesecret.GetRemoteSecretName(cd.Name, cd.Namespace)
+	caSecretName := cert.GetCASecretName(cd.Name, cd.Namespace)
+	caValuesYAML := utils.MustScopedCAPropagationServiceValuesYAML(caIdentifier, caSecretName)
+
 	mcs := &kcmv1beta1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetMultiClusterServiceNameHash(cd.Name, cd.Namespace),
@@ -100,21 +110,40 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 					istio.IstioRoleLabel: "member",
 				},
 			},
+			DependsOn: []string{GetNamespaceMultiClusterServiceName()},
 			ServiceSpec: kcmv1beta1.ServiceSpec{
 				Services: []kcmv1beta1.Service{
 					{
-						Name:      "istio-secret-propagation",
+						Name:      remoteSecretName,
 						Namespace: istio.IstioSystemNamespace,
-						Template:  fmt.Sprintf("%s-propagation", istio.IstioReleaseName),
+						Template:  istio.ServiceTemplateName("propagation"),
+						Values:    remoteValuesYAML,
+					},
+					{
+						Name:      caSecretName,
+						Namespace: istio.IstioSystemNamespace,
+						Template:  istio.ServiceTemplateName("propagation"),
+						Values:    caValuesYAML,
 					},
 				},
+				// Refs are required so template rendering fails fast if source
+				// management secrets are missing.
 				TemplateResourceRefs: []addoncontrollerv1beta1.TemplateResourceRef{
 					{
-						Identifier: "Data",
+						Identifier: remoteIdentifier,
 						Resource: corev1.ObjectReference{
 							APIVersion: "v1",
 							Kind:       "Secret",
-							Name:       remotesecret.GetRemoteSecretName(cd.Name, cd.Namespace),
+							Name:       remoteSecretName,
+							Namespace:  istio.IstioSystemNamespace,
+						},
+					},
+					{
+						Identifier: caIdentifier,
+						Resource: corev1.ObjectReference{
+							APIVersion: "v1",
+							Kind:       "Secret",
+							Name:       caSecretName,
 							Namespace:  istio.IstioSystemNamespace,
 						},
 					},
@@ -171,5 +200,9 @@ func GetMultiClusterServiceName(clusterName, namespace string) string {
 
 func GetMultiClusterServiceNameHash(clusterName, namespace string) string {
 	name := GetMultiClusterServiceName(clusterName, namespace)
-	return utils.GetNameHash("remote-secret-propagation", name)
+	return utils.GetNameHash("istio-secrets-propagation", name)
+}
+
+func GetNamespaceMultiClusterServiceName() string {
+	return fmt.Sprintf("%s-namespace", istio.IstioReleaseName)
 }
