@@ -33,6 +33,10 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 	log := log.FromContext(ctx)
 	log.Info("Trying to create certificate")
 
+	if err := cm.tryDeleteDeprecatedCertificate(ctx, clusterDeployment.Name, clusterDeployment.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated Istio certificate")
+	}
+
 	cert := cm.generateClusterCACertificate(clusterDeployment)
 	if err := cm.createCertificate(ctx, cert, clusterDeployment); err != nil {
 		return fmt.Errorf("failed to create istio certificate: %v", err)
@@ -45,6 +49,10 @@ func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 	certName := GetCertName(req.Name, req.Namespace)
 	log := log.FromContext(ctx)
 
+	if err := cm.tryDeleteDeprecatedCertificate(ctx, req.Name, req.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated Istio certificate")
+	}
+
 	log.Info("Trying to delete istio certificate", "certificateName", certName)
 	if err := cm.k8sClient.Delete(ctx, &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,7 +64,7 @@ func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 			log.Info("Istio Certificate already deleted", "certificateName", certName)
 			return nil
 		}
-		return fmt.Errorf("failed to delete istio certificate")
+		return fmt.Errorf("failed to delete istio certificate: %v", err)
 	}
 
 	log.Info("Istio Certificate successfully deleted", "certificateName", certName)
@@ -111,6 +119,17 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 	}
 }
 
+func (cm *CertManager) tryDeleteDeprecatedCertificate(ctx context.Context, name, namespace string) error {
+	return client.IgnoreNotFound(
+		cm.k8sClient.Delete(ctx, &cmv1.Certificate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getDeprecatedCertName(name, namespace),
+				Namespace: istio.IstioSystemNamespace,
+			},
+		}),
+	)
+}
+
 func (cm *CertManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
 	record.Eventf(
 		cd,
@@ -130,6 +149,10 @@ func (cm *CertManager) sendDeletionEvent(req ctrl.Request) {
 		"Istio certificate '%s' is successfully deleted",
 		GetCertName(cd.Name, cd.Namespace),
 	)
+}
+
+func getDeprecatedCertName(name, namespace string) string {
+	return fmt.Sprintf("%s-%s-%s-ca", istio.IstioReleaseName, namespace, name)
 }
 
 func GetCertName(clusterName, namespace string) string {
