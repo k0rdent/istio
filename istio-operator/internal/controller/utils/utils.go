@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"fmt"
-	"hash/adler32"
 	"strconv"
 	"strings"
 
@@ -108,17 +107,6 @@ func LogEvent(
 
 func IsAdopted(cluster *kcmv1beta1.ClusterDeployment) bool {
 	return strings.HasPrefix(cluster.Spec.Template, "adopted-")
-}
-
-func GetNameHash(prefix, name string) string {
-	return fmt.Sprintf("%s-%s", prefix, GetHash(name))
-}
-
-func GetHash(name string) string {
-	h := adler32.New()
-	h.Write([]byte(name))
-
-	return fmt.Sprintf("%d", h.Sum32())
 }
 
 func IsResourceExists(ctx context.Context, client client.Client, obj client.Object, name, namespace string) (bool, error) {

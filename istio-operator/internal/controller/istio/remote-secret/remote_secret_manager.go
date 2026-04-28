@@ -8,6 +8,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,6 +39,11 @@ func New(c client.Client) *RemoteSecretManager {
 // Function tries to delete the remote secret
 func (rs *RemoteSecretManager) TryDelete(ctx context.Context, request ctrl.Request) error {
 	log := log.FromContext(ctx)
+
+	if err := rs.deleteDeprecatedSecret(ctx, request.Name, request.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated remote secret")
+	}
+
 	log.Info("Trying to delete remote secret")
 
 	if err := rs.client.Delete(ctx, &corev1.Secret{
@@ -62,6 +68,10 @@ func (rs *RemoteSecretManager) TryDelete(ctx context.Context, request ctrl.Reque
 func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) error {
 	log := log.FromContext(ctx)
 	log.Info("Trying to create remote secret")
+
+	if err := rs.deleteDeprecatedSecret(ctx, clusterDeployment.Name, clusterDeployment.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated remote secret")
+	}
 
 	if !utils.IsClusterDeploymentReady(clusterDeployment) {
 		log.Info("Cluster deployment is not ready")
@@ -151,6 +161,17 @@ func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret 
 	return nil
 }
 
+func (rs *RemoteSecretManager) deleteDeprecatedSecret(ctx context.Context, name, namespace string) error {
+	return client.IgnoreNotFound(
+		rs.client.Delete(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getDeprecatedRemoteSecretName(name, namespace),
+				Namespace: istio.IstioSystemNamespace,
+			},
+		}),
+	)
+}
+
 func (rs *RemoteSecretManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
 	record.Eventf(
 		cd,
@@ -170,6 +191,11 @@ func (rs *RemoteSecretManager) sendDeletionEvent(req ctrl.Request) {
 		"Istio remote secret '%s' is successfully deleted",
 		GetRemoteSecretName(cd.Name, cd.Namespace),
 	)
+}
+
+func getDeprecatedRemoteSecretName(clusterName, namespace string) string {
+	name := fmt.Sprintf("%s-%s", namespace, clusterName)
+	return hash.WithPrefix(remoteSecretPrefix, name, hash.FnvHash)
 }
 
 type IstioRemoteSecretCreator struct{}

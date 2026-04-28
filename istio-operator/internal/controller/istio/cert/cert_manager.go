@@ -11,6 +11,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -133,15 +134,15 @@ func (cm *CertManager) sendDeletionEvent(req ctrl.Request) {
 
 func GetCertName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash("istio-ca-certificate", name)
+	return hash.WithPrefix("istio-ca-certificate", name, hash.AdlerHash)
 }
 
 func GetCASecretName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash("istio-ca-secret", name)
+	return hash.WithPrefix("istio-ca-secret", name, hash.AdlerHash)
 }
 
 func GetCAIssuerName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash("istio-ca-issuer", name)
+	return hash.WithPrefix("istio-ca-issuer", name, hash.AdlerHash)
 }
