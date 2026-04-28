@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
 	"github.com/spf13/pflag"
 	"istio.io/istio/pkg/config/constants"
@@ -349,7 +349,7 @@ func getServerFromKubeconfig(client *k8s.KubeClient) (string, Warning, error) {
 
 func GetRemoteSecretName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash(remoteSecretPrefix, name)
+	return hash.WithPrefix(remoteSecretPrefix, name, hash.AdlerHash)
 }
 
 func getServiceAccountSecret(client *k8s.KubeClient, opt RemoteSecretOptions, ctx context.Context) (*v1.Secret, error) {

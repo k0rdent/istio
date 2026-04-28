@@ -10,10 +10,12 @@ import (
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	addoncontrollerv1beta1 "github.com/projectsveltos/addon-controller/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -31,6 +33,10 @@ func New(c client.Client) *RemoteSecretPropagationManager {
 
 func (m *RemoteSecretPropagationManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment) error {
 	log := log.FromContext(ctx)
+
+	if err := m.tryDeleteDeprecatedPropagationMCS(ctx, clusterDeployment.Name, clusterDeployment.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated MultiClusterService for secret propagation")
+	}
 
 	exists, err := m.multiClusterServiceExists(ctx, clusterDeployment)
 	if err != nil {
@@ -55,6 +61,10 @@ func (m *RemoteSecretPropagationManager) TryCreate(ctx context.Context, clusterD
 func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 	log := log.FromContext(ctx)
 
+	if err := m.tryDeleteDeprecatedPropagationMCS(ctx, req.Name, req.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated MultiClusterService for secret propagation")
+	}
+
 	mcs := &kcmv1beta1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetMultiClusterServiceNameHash(req.Name, req.Namespace),
@@ -72,6 +82,7 @@ func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl
 
 	m.sendDeletionEvent(req)
 	log.Info("MultiClusterService successfully deleted")
+
 	return nil
 }
 
@@ -173,6 +184,23 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 	return nil
 }
 
+// tryDeleteDeprecatedPropagationMCS attempts to delete the MultiClusterService created by older versions of the operator for secret propagation,
+// which had a different naming scheme. This is needed to ensure cleanup of the old MCS.
+func (m *RemoteSecretPropagationManager) tryDeleteDeprecatedPropagationMCS(ctx context.Context, name, namespace string) error {
+	mcs := new(kcmv1beta1.MultiClusterService)
+	if err := m.client.Get(ctx, types.NamespacedName{
+		Name: getDeprecatedMultiClusterServiceName(name, namespace),
+	}, mcs); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	if !utils.IsResourceCreatedByOperator(mcs) {
+		return nil
+	}
+
+	return m.client.Delete(ctx, mcs)
+}
+
 func (m *RemoteSecretPropagationManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
 	record.Eventf(
 		cd,
@@ -194,13 +222,18 @@ func (m *RemoteSecretPropagationManager) sendDeletionEvent(req ctrl.Request) {
 	)
 }
 
+func getDeprecatedMultiClusterServiceName(clusterName, namespace string) string {
+	name := GetMultiClusterServiceName(clusterName, namespace)
+	return hash.WithPrefix("remote-secret-propagation", name, hash.FnvHash)
+}
+
 func GetMultiClusterServiceName(clusterName, namespace string) string {
 	return fmt.Sprintf("%s-%s", namespace, clusterName)
 }
 
 func GetMultiClusterServiceNameHash(clusterName, namespace string) string {
 	name := GetMultiClusterServiceName(clusterName, namespace)
-	return utils.GetNameHash("istio-secrets-propagation", name)
+	return hash.WithPrefix("istio-secrets-propagation", name, hash.AdlerHash)
 }
 
 func GetNamespaceMultiClusterServiceName() string {

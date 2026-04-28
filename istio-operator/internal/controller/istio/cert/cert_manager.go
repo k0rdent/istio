@@ -11,8 +11,10 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -32,6 +34,10 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 	log := log.FromContext(ctx)
 	log.Info("Trying to create certificate")
 
+	if err := cm.tryDeleteDeprecatedCertificate(ctx, clusterDeployment.Name, clusterDeployment.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated Istio certificate")
+	}
+
 	cert := cm.generateClusterCACertificate(clusterDeployment)
 	if err := cm.createCertificate(ctx, cert, clusterDeployment); err != nil {
 		return fmt.Errorf("failed to create istio certificate: %v", err)
@@ -44,6 +50,10 @@ func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 	certName := GetCertName(req.Name, req.Namespace)
 	log := log.FromContext(ctx)
 
+	if err := cm.tryDeleteDeprecatedCertificate(ctx, req.Name, req.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated Istio certificate")
+	}
+
 	log.Info("Trying to delete istio certificate", "certificateName", certName)
 	if err := cm.k8sClient.Delete(ctx, &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -55,7 +65,7 @@ func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 			log.Info("Istio Certificate already deleted", "certificateName", certName)
 			return nil
 		}
-		return fmt.Errorf("failed to delete istio certificate")
+		return fmt.Errorf("failed to delete istio certificate: %v", err)
 	}
 
 	log.Info("Istio Certificate successfully deleted", "certificateName", certName)
@@ -110,6 +120,22 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 	}
 }
 
+func (cm *CertManager) tryDeleteDeprecatedCertificate(ctx context.Context, name, namespace string) error {
+	cert := new(cmv1.Certificate)
+	if err := cm.k8sClient.Get(ctx, types.NamespacedName{
+		Name:      getDeprecatedCertName(name, namespace),
+		Namespace: istio.IstioSystemNamespace,
+	}, cert); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	if !utils.IsResourceCreatedByOperator(cert) {
+		return nil
+	}
+
+	return cm.k8sClient.Delete(ctx, cert)
+}
+
 func (cm *CertManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
 	record.Eventf(
 		cd,
@@ -131,17 +157,21 @@ func (cm *CertManager) sendDeletionEvent(req ctrl.Request) {
 	)
 }
 
+func getDeprecatedCertName(name, namespace string) string {
+	return fmt.Sprintf("%s-%s-%s-ca", istio.IstioReleaseName, namespace, name)
+}
+
 func GetCertName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash("istio-ca-certificate", name)
+	return hash.WithPrefix("istio-ca-certificate", name, hash.AdlerHash)
 }
 
 func GetCASecretName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash("istio-ca-secret", name)
+	return hash.WithPrefix("istio-ca-secret", name, hash.AdlerHash)
 }
 
 func GetCAIssuerName(clusterName, namespace string) string {
 	name := fmt.Sprintf("%s-%s", namespace, clusterName)
-	return utils.GetNameHash("istio-ca-issuer", name)
+	return hash.WithPrefix("istio-ca-issuer", name, hash.AdlerHash)
 }
