@@ -60,6 +60,10 @@ func (m *RemoteSecretPropagationManager) TryCreate(ctx context.Context, clusterD
 func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 	log := log.FromContext(ctx)
 
+	if err := m.tryDeleteDeprecatedPropagationMCS(ctx, req.Name, req.Namespace); err != nil {
+		log.Error(err, "Failed to delete deprecated MultiClusterService for secret propagation")
+	}
+
 	mcs := &kcmv1beta1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetMultiClusterServiceNameHash(req.Name, req.Namespace),
@@ -78,9 +82,6 @@ func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl
 	m.sendDeletionEvent(req)
 	log.Info("MultiClusterService successfully deleted")
 
-	if err := m.tryDeleteDeprecatedPropagationMCS(ctx, req.Name, req.Namespace); err != nil {
-		log.Error(err, "Failed to delete deprecated MultiClusterService for secret propagation")
-	}
 	return nil
 }
 

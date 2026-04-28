@@ -39,12 +39,11 @@ func New(c client.Client) *RemoteSecretManager {
 // Function tries to delete the remote secret
 func (rs *RemoteSecretManager) TryDelete(ctx context.Context, request ctrl.Request) error {
 	log := log.FromContext(ctx)
+	log.Info("Trying to delete remote secret")
 
 	if err := rs.deleteDeprecatedSecret(ctx, request.Name, request.Namespace); err != nil {
 		log.Error(err, "Failed to delete deprecated remote secret")
 	}
-
-	log.Info("Trying to delete remote secret")
 
 	if err := rs.client.Delete(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

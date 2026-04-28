@@ -15,8 +15,9 @@ const (
 	AdlerHash
 )
 
-// WithPrefix returns "prefix-hash" string using the selected hash algorithm.
-// Hash is returned as lowercase hex.
+// WithPrefix returns a "prefix-hash" string using the selected hash algorithm.
+// The hash string format depends on the selected HashType (for example,
+// lowercase hexadecimal for FnvHash and base-10 decimal for AdlerHash).
 func WithPrefix(prefix, data string, ht HashType) string {
 	fn := HashFunc(ht)
 	h := fn(data)
