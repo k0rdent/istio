@@ -20,11 +20,13 @@ rules:
   - watch
 - apiGroups:
   - k0rdent.mirantis.com
+  - events.k8s.io
   resources:
   - clusterdeployments
   - multiclusterservices
   - credentials
   - regions
+  - events
   verbs:
   - create
   - delete
