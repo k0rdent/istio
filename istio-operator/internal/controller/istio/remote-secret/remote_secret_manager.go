@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -161,14 +162,19 @@ func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret 
 }
 
 func (rs *RemoteSecretManager) deleteDeprecatedSecret(ctx context.Context, name, namespace string) error {
-	return client.IgnoreNotFound(
-		rs.client.Delete(ctx, &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      getDeprecatedRemoteSecretName(name, namespace),
-				Namespace: istio.IstioSystemNamespace,
-			},
-		}),
-	)
+	secret := new(corev1.Secret)
+	if err := rs.client.Get(ctx, types.NamespacedName{
+		Name:      getDeprecatedRemoteSecretName(name, namespace),
+		Namespace: istio.IstioSystemNamespace,
+	}, secret); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	if !utils.IsResourceCreatedByOperator(secret) {
+		return nil
+	}
+
+	return rs.client.Delete(ctx, secret)
 }
 
 func (rs *RemoteSecretManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {

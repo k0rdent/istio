@@ -14,6 +14,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -120,14 +121,19 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 }
 
 func (cm *CertManager) tryDeleteDeprecatedCertificate(ctx context.Context, name, namespace string) error {
-	return client.IgnoreNotFound(
-		cm.k8sClient.Delete(ctx, &cmv1.Certificate{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      getDeprecatedCertName(name, namespace),
-				Namespace: istio.IstioSystemNamespace,
-			},
-		}),
-	)
+	cert := new(cmv1.Certificate)
+	if err := cm.k8sClient.Get(ctx, types.NamespacedName{
+		Name:      getDeprecatedCertName(name, namespace),
+		Namespace: istio.IstioSystemNamespace,
+	}, cert); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	if !utils.IsResourceCreatedByOperator(cert) {
+		return nil
+	}
+
+	return cm.k8sClient.Delete(ctx, cert)
 }
 
 func (cm *CertManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {

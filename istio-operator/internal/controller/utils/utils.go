@@ -167,3 +167,8 @@ func IsClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
 
 	return false
 }
+
+func IsResourceCreatedByOperator(obj metav1.Object) bool {
+	v, ok := obj.GetLabels()[ManagedByLabel]
+	return ok && v == ManagedByValue
+}

@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -186,13 +187,18 @@ func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.C
 // tryDeleteDeprecatedPropagationMCS attempts to delete the MultiClusterService created by older versions of the operator for secret propagation,
 // which had a different naming scheme. This is needed to ensure cleanup of the old MCS.
 func (m *RemoteSecretPropagationManager) tryDeleteDeprecatedPropagationMCS(ctx context.Context, name, namespace string) error {
-	return client.IgnoreNotFound(
-		m.client.Delete(ctx, &kcmv1beta1.MultiClusterService{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: getDeprecatedMultiClusterServiceName(name, namespace),
-			},
-		}),
-	)
+	mcs := new(kcmv1beta1.MultiClusterService)
+	if err := m.client.Get(ctx, types.NamespacedName{
+		Name: getDeprecatedMultiClusterServiceName(name, namespace),
+	}, mcs); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	if !utils.IsResourceCreatedByOperator(mcs) {
+		return nil
+	}
+
+	return m.client.Delete(ctx, mcs)
 }
 
 func (m *RemoteSecretPropagationManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
