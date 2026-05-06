@@ -19,7 +19,7 @@ spec:
     services:
       - name: k0rdent-istio
         namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-{{ $version }}
+        template: {{ .Chart.Name }}-main-{{ $version }}
         values: |
           operator:
             enabled: false
