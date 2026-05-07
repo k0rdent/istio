@@ -105,6 +105,8 @@ spec:
         name: {{ index .Values "k0rdent-istio" "repo" "name" }}
 ---
 # TODO: Delete this ServiceTemplateChain after the new release
+{{- $template := lookup "k0rdent.mirantis.com/v1beta1" "ServiceTemplate" .Values.kcm.namespace (printf "%s-0-5-0" .Chart.Name) }}
+{{- if $template }}
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: ServiceTemplateChain
 metadata:
@@ -119,4 +121,5 @@ spec:
       availableUpgrades:
         - name: {{ .Chart.Name }}-main-{{ $chartVersion }}
           version: {{ .Chart.Version | quote }}
+{{- end }}
 {{- end }}
