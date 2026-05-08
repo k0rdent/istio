@@ -108,7 +108,7 @@ jobs:
           make dev-istio-deploy
       - name: "[Latest Istio Release] Run KIND Istio Child cluster"
         run: |
-          make dev-adopted-deploy KIND_CLUSTER_NAME=regional-adopted
+          make dev-adopted-deploy KIND_CLUSTER_NAME=adopted-cluster
       - name: Run KIND cloud provider
         run: docker run -d --rm --network kind -v /var/run/docker.sock:/var/run/docker.sock registry.k8s.io/cloud-provider-kind/cloud-controller-manager:v0.10.0
       - name: "[Latest Istio Release] Deploy Istio components on Child adopted cluster"
@@ -117,7 +117,7 @@ jobs:
           kubectl wait --for=condition=Ready clusterdeployment/adopted-cluster -n kcm-system --timeout=10m
       - name: "[Pre-upgrade] Deploy server on Child adopted cluster"
         run: |
-          kubectl config use-context kind-regional-adopted
+          kubectl config use-context kind-adopted-cluster
           kubectl create namespace sample
           kubectl label namespace sample istio-injection=enabled
           kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.27/samples/helloworld/helloworld.yaml -l service=helloworld -n sample
@@ -190,7 +190,7 @@ jobs:
           make dev-istio-deploy
       - name: "[PR] Run KIND Istio Child adopted cluster"
         run: |
-          make dev-adopted-deploy KIND_CLUSTER_NAME=regional-adopted
+          make dev-adopted-deploy KIND_CLUSTER_NAME=adopted-cluster
           
       - name: "[PR] Deploy Istio components on Child adopted cluster"
         run: |
