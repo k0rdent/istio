@@ -7,6 +7,6 @@ metadata:
     k0rdent.mirantis.com/istio-role: member
     k0rdent.mirantis.com/istio-gateway: "true"
 spec:
-  template: adopted-cluster-1-0-1
+  template: adopted-cluster-1-0-2
   credential: adopted-cluster-cred
   config: {}
