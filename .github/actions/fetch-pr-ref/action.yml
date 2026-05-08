@@ -16,6 +16,6 @@ runs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        ref: ${{ fromJSON(steps.pr.outputs.result).merge_commit_sha }}
+        ref: ${{ github.event.pull_request.merge_commit_sha }}
         fetch-depth: 0
 
