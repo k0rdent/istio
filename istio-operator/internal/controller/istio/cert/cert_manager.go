@@ -98,8 +98,8 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 			Name:      certName,
 			Namespace: istio.IstioSystemNamespace,
 			Labels: map[string]string{
-				labels.ManagedByLabel:    labels.ManagedByIstioOperator,
-				labels.IstioVersionLabel: istio.ReleaseVersion,
+				labels.ManagedByLabel:           labels.ManagedByIstioOperator,
+				labels.K0rdentIstioVersionLabel: istio.ReleaseVersion,
 			},
 		},
 		Spec: cmv1.CertificateSpec{

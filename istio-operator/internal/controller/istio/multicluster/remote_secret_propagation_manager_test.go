@@ -35,7 +35,7 @@ func TestTryCreate_CreatesMCSWhenNotExists(t *testing.T) {
 		t.Fatalf("MCS was not created: %v", err)
 	}
 
-	if got := mcs.Labels[labels.IstioVersionLabel]; got != "1.0.0" {
+	if got := mcs.Labels[labels.K0rdentIstioVersionLabel]; got != "1.0.0" {
 		t.Errorf("expected version label %q, got %q", "1.0.0", got)
 	}
 }
@@ -50,7 +50,7 @@ func TestTryCreate_UpdatesMCSWhenVersionChanges(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: MultiClusterServiceName(cd.Name, cd.Namespace),
 			Labels: map[string]string{
-				labels.IstioVersionLabel: "1.0.0",
+				labels.K0rdentIstioVersionLabel: "1.0.0",
 			},
 		},
 	}
@@ -71,7 +71,7 @@ func TestTryCreate_UpdatesMCSWhenVersionChanges(t *testing.T) {
 		t.Fatalf("failed to get MCS: %v", err)
 	}
 
-	if got := mcs.Labels[labels.IstioVersionLabel]; got != "1.1.0" {
+	if got := mcs.Labels[labels.K0rdentIstioVersionLabel]; got != "1.1.0" {
 		t.Errorf("expected updated version label %q, got %q", "1.1.0", got)
 	}
 }
@@ -86,7 +86,7 @@ func TestTryCreate_SkipsUpdateWhenVersionUnchanged(t *testing.T) {
 			Name:            MultiClusterServiceName(cd.Name, cd.Namespace),
 			ResourceVersion: "999",
 			Labels: map[string]string{
-				labels.IstioVersionLabel: "1.0.0",
+				labels.K0rdentIstioVersionLabel: "1.0.0",
 			},
 		},
 	}
@@ -131,7 +131,7 @@ func TestTryCreate_SequentialVersionUpgrades(t *testing.T) {
 			t.Fatalf("failed to get MCS at version %s: %v", version, err)
 		}
 
-		if got := mcs.Labels[labels.IstioVersionLabel]; got != version {
+		if got := mcs.Labels[labels.K0rdentIstioVersionLabel]; got != version {
 			t.Errorf("version %s: expected label %q, got %q", version, version, got)
 		}
 	}

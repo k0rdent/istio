@@ -141,10 +141,10 @@ func (m *RemoteSecretPropagationManager) generateMultiClusterService(cd *kcmv1be
 		ObjectMeta: metav1.ObjectMeta{
 			Name: MultiClusterServiceName(cd.Name, cd.Namespace),
 			Labels: map[string]string{
-				labels.ClusterNameLabel:      cd.Name,
-				labels.ClusterNamespaceLabel: cd.Namespace,
-				labels.IstioVersionLabel:     istio.ReleaseVersion,
-				labels.ManagedByLabel:        labels.ManagedByIstioOperator,
+				labels.ClusterNameLabel:         cd.Name,
+				labels.ClusterNamespaceLabel:    cd.Namespace,
+				labels.K0rdentIstioVersionLabel: istio.ReleaseVersion,
+				labels.ManagedByLabel:           labels.ManagedByIstioOperator,
 			},
 		},
 		Spec: kcmv1beta1.MultiClusterServiceSpec{

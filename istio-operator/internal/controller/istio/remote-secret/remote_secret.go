@@ -262,7 +262,7 @@ func createRemoteServiceAccountSecret(kubeconfig *api.Config, clusterName, secNa
 				clusterNameAnnotationKey: clusterName,
 			},
 			Labels: map[string]string{
-				labels.IstioVersionLabel:         istio.ReleaseVersion,
+				labels.K0rdentIstioVersionLabel:  istio.ReleaseVersion,
 				labels.ManagedByLabel:            labels.ManagedByIstioOperator,
 				mcluster.MultiClusterSecretLabel: "true",
 			},
@@ -467,8 +467,8 @@ func getOrCreateServiceAccountSecret(
 			Name:      secretName,
 			Namespace: opt.Namespace,
 			Labels: map[string]string{
-				labels.IstioVersionLabel: istio.ReleaseVersion,
-				labels.ManagedByLabel:    labels.ManagedByIstioOperator,
+				labels.K0rdentIstioVersionLabel: istio.ReleaseVersion,
+				labels.ManagedByLabel:           labels.ManagedByIstioOperator,
 			},
 			Annotations: map[string]string{v1.ServiceAccountNameKey: serviceAccount.Name},
 		},
