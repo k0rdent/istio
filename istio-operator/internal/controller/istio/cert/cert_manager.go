@@ -12,6 +12,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
 	"github.com/k0rdent/istio/istio-operator/internal/hash"
+	"github.com/k0rdent/istio/istio-operator/internal/labels"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,7 +41,7 @@ func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1be
 
 	cert := cm.generateClusterCACertificate(clusterDeployment)
 	if err := cm.createCertificate(ctx, cert, clusterDeployment); err != nil {
-		return fmt.Errorf("failed to create istio certificate: %v", err)
+		return fmt.Errorf("failed to create istio certificate: %w", err)
 	}
 
 	return nil
@@ -65,7 +66,7 @@ func (cm *CertManager) TryDelete(ctx context.Context, req ctrl.Request) error {
 			log.Info("Istio Certificate already deleted", "certificateName", certName)
 			return nil
 		}
-		return fmt.Errorf("failed to delete istio certificate: %v", err)
+		return fmt.Errorf("failed to delete istio certificate: %w", err)
 	}
 
 	log.Info("Istio Certificate successfully deleted", "certificateName", certName)
@@ -97,7 +98,8 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 			Name:      certName,
 			Namespace: istio.IstioSystemNamespace,
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "istio-operator",
+				labels.ManagedByLabel:    labels.ManagedByIstioOperator,
+				labels.IstioVersionLabel: istio.ReleaseVersion,
 			},
 		},
 		Spec: cmv1.CertificateSpec{

@@ -8,6 +8,7 @@ import (
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/record"
+	"github.com/k0rdent/istio/istio-operator/internal/labels"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -15,10 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-const IstioMeshLabel = "k0rdent.mirantis.com/istio-mesh"
-const ManagedByLabel = "app.kubernetes.io/managed-by"
-const ManagedByValue = "istio-operator"
 
 func GetEventsAnnotations(obj runtime.Object) map[string]string {
 	var generation string
@@ -46,7 +43,7 @@ func GetClusterDeploymentStub(name, namespace string) *kcmv1beta1.ClusterDeploym
 			Namespace: namespace,
 		},
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "k0rdent.mirantis.com/v1beta1",
+			APIVersion: kcmv1beta1.GroupVersion.String(),
 			Kind:       kcmv1beta1.ClusterDeploymentKind,
 		},
 	}
@@ -123,8 +120,7 @@ func IsResourceExists(ctx context.Context, client client.Client, obj client.Obje
 }
 
 func IsInMesh(cd *kcmv1beta1.ClusterDeployment) bool {
-	_, ok := cd.Labels[IstioMeshLabel]
-	return ok
+	return labels.HasIstioMeshLabel(cd.Labels)
 }
 
 // MustPropagationServiceValuesYAML builds Helm values for propagation.yaml.
@@ -169,6 +165,6 @@ func IsClusterDeploymentReady(cd *kcmv1beta1.ClusterDeployment) bool {
 }
 
 func IsResourceCreatedByOperator(obj metav1.Object) bool {
-	v, ok := obj.GetLabels()[ManagedByLabel]
-	return ok && v == ManagedByValue
+	v, ok := obj.GetLabels()[labels.ManagedByLabel]
+	return ok && v == labels.ManagedByIstioOperator
 }

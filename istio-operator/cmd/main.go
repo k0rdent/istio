@@ -75,10 +75,10 @@ func main() {
 		"Namespace where Istio is installed. Default is 'istio-system'.")
 	flag.StringVar(&istio.IstioReleaseName, "istio-release-name", "k0rdent-istio", "Name of the Istio release.")
 	flag.StringVar(
-		&istio.IstioTemplateVersionSuffix,
-		"istio-template-version-suffix",
-		os.Getenv("ISTIO_TEMPLATE_VERSION_SUFFIX"),
-		"Optional suffix for service template names (for example: 0-4-2).",
+		&istio.ReleaseVersion,
+		"release-version",
+		os.Getenv("RELEASE_VERSION"),
+		"K0rdent Istio release version (for example: 0-4-2).",
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")

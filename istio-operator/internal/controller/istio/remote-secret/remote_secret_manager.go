@@ -26,18 +26,18 @@ type CreateOptions struct {
 }
 
 type RemoteSecretManager struct {
-	client client.Client
-	IIstioRemoteSecretCreator
+	client  client.Client
+	creator RemoteSecretCreator
 }
 
 func New(c client.Client) *RemoteSecretManager {
 	return &RemoteSecretManager{
-		client:                    c,
-		IIstioRemoteSecretCreator: NewIstioRemoteSecret(),
+		client:  c,
+		creator: newDefaultRemoteSecretCreator(),
 	}
 }
 
-// Function tries to delete the remote secret
+// TryDelete deletes the remote secret for the given request.
 func (rs *RemoteSecretManager) TryDelete(ctx context.Context, request ctrl.Request) error {
 	log := log.FromContext(ctx)
 	log.Info("Trying to delete remote secret")
@@ -64,7 +64,7 @@ func (rs *RemoteSecretManager) TryDelete(ctx context.Context, request ctrl.Reque
 	return nil
 }
 
-// Function handles the creation of a remote secret
+// TryCreate creates a remote secret for the given cluster deployment.
 func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) error {
 	log := log.FromContext(ctx)
 	log.Info("Trying to create remote secret")
@@ -81,7 +81,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 	if !opt.AllowOverwrite {
 		exists, err := rs.remoteSecretExists(ctx, clusterDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to check remote secret: %v", err)
+			return fmt.Errorf("failed to check remote secret: %w", err)
 		}
 
 		if exists {
@@ -97,12 +97,12 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 	if createdInKCMRegion {
 		regionClusterName, err := k8s.GetKcmRegionClusterNameRelatedToClusterDeployment(ctx, rs.client, clusterDeployment)
 		if err != nil {
-			return fmt.Errorf("failed to get cluster region: %v", err)
+			return fmt.Errorf("failed to get cluster region: %w", err)
 		}
 
 		regionKubeconfig, err := k8s.GetKubeconfigByRegionName(ctx, rs.client, regionClusterName)
 		if err != nil {
-			return fmt.Errorf("failed to get kubeconfig by region name: %v", err)
+			return fmt.Errorf("failed to get kubeconfig by region name: %w", err)
 		}
 
 		if regionKubeconfig == nil {
@@ -111,7 +111,7 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 
 		regionClient, err := k8s.NewKubeClientFromKubeconfig(regionKubeconfig)
 		if err != nil {
-			return fmt.Errorf("failed to create kube client from region kubeconfig: %v", err)
+			return fmt.Errorf("failed to create kube client from region kubeconfig: %w", err)
 		}
 
 		regionKubeClient = regionClient.Client
@@ -119,22 +119,22 @@ func (rs *RemoteSecretManager) TryCreate(ctx context.Context, clusterDeployment 
 
 	kubeconfigSecretName, err := k8s.GetKubeconfigSecretName(ctx, rs.client, clusterDeployment)
 	if err != nil {
-		return fmt.Errorf("failed to get kubeconfig secret name: %v", err)
+		return fmt.Errorf("failed to get kubeconfig secret name: %w", err)
 	}
 
 	kubeconfig, err := k8s.GetKubeconfigFromSecretInNamespace(ctx, regionKubeClient, kubeconfigSecretName, clusterDeployment.Namespace)
 	if err != nil {
-		return fmt.Errorf("failed to get kubeconfig from secret: %v", err)
+		return fmt.Errorf("failed to get kubeconfig from secret: %w", err)
 	}
 
-	remoteSecret, err := rs.GetRemoteSecret(ctx, kubeconfig, clusterDeployment, opt)
+	remoteSecret, err := rs.creator.GetRemoteSecret(ctx, kubeconfig, clusterDeployment, opt)
 	if err != nil {
-		return fmt.Errorf("failed to get remote secret: %v", err)
+		return fmt.Errorf("failed to get remote secret: %w", err)
 	}
 
 	if err := rs.createSecretResource(ctx, remoteSecret); err != nil {
 		log.Error(err, "failed to create remote secret")
-		return fmt.Errorf("failed to create remote secret: %v", err)
+		return fmt.Errorf("failed to create remote secret: %w", err)
 	}
 
 	rs.sendCreationEvent(clusterDeployment)
@@ -148,9 +148,9 @@ func (rs *RemoteSecretManager) remoteSecretExists(ctx context.Context, cd *kcmv1
 	return utils.IsResourceExists(ctx, rs.client, secret, secretName, istio.IstioSystemNamespace)
 }
 
-// Function creates the remote secret resource in k8s
+// createSecretResource deletes any existing secret and recreates it.
 func (rs *RemoteSecretManager) createSecretResource(ctx context.Context, secret *corev1.Secret) error {
-	if err := rs.client.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
+	if err := client.IgnoreNotFound(rs.client.Delete(ctx, secret)); err != nil {
 		return err
 	}
 
@@ -203,18 +203,19 @@ func getDeprecatedRemoteSecretName(clusterName, namespace string) string {
 	return hash.WithPrefix(remoteSecretPrefix, name, hash.FnvHash)
 }
 
-type IstioRemoteSecretCreator struct{}
-
-type IIstioRemoteSecretCreator interface {
+// RemoteSecretCreator creates a remote secret from a kubeconfig and cluster deployment.
+type RemoteSecretCreator interface {
 	GetRemoteSecret(context.Context, []byte, *kcmv1beta1.ClusterDeployment, CreateOptions) (*corev1.Secret, error)
 }
 
-func NewIstioRemoteSecret() IIstioRemoteSecretCreator {
-	return &IstioRemoteSecretCreator{}
+type defaultRemoteSecretCreator struct{}
+
+func newDefaultRemoteSecretCreator() RemoteSecretCreator {
+	return &defaultRemoteSecretCreator{}
 }
 
-// Function creates a remote secret for Istio using the provided kubeconfig
-func (rs *IstioRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) (*corev1.Secret, error) {
+// GetRemoteSecret creates a remote secret for Istio using the provided kubeconfig.
+func (rs *defaultRemoteSecretCreator) GetRemoteSecret(ctx context.Context, kubeconfig []byte, clusterDeployment *kcmv1beta1.ClusterDeployment, opt CreateOptions) (*corev1.Secret, error) {
 	log := log.FromContext(ctx)
 
 	kubeClient, err := k8s.NewKubeClientFromKubeconfig(kubeconfig)

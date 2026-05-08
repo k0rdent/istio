@@ -28,6 +28,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/utils"
+	label "github.com/k0rdent/istio/istio-operator/internal/labels"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -89,7 +90,7 @@ func (r *ClusterDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&kcmv1beta1.ClusterDeployment{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(obj client.Object) bool {
 			labels := obj.GetLabels()
-			return slices.Contains(istio.IstioRoleLabelExpectedValues, labels[istio.IstioRoleLabel])
+			return slices.Contains(istio.IstioRoleLabelExpectedValues, labels[label.IstioRoleLabel])
 		})).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](
@@ -134,7 +135,7 @@ func (r *ClusterDeploymentReconciler) tryDeleteResources(ctx context.Context, re
 			"Failed to delete MultiClusterService",
 			clusterDeployment,
 			err,
-			"multiClusterServiceName", multicluster.GetMultiClusterServiceNameHash(req.Name, req.Namespace),
+			"multiClusterServiceName", multicluster.MultiClusterServiceName(req.Name, req.Namespace),
 		)
 		return ctrl.Result{}, err
 	}
@@ -174,7 +175,7 @@ func (r *ClusterDeploymentReconciler) tryCreateResources(ctx context.Context, re
 			"Failed to create MultiClusterService",
 			clusterDeployment,
 			err,
-			"multiClusterServiceName", multicluster.GetMultiClusterServiceNameHash(req.Name, req.Namespace),
+			"multiClusterServiceName", multicluster.MultiClusterServiceName(req.Name, req.Namespace),
 		)
 		return ctrl.Result{}, err
 	}
