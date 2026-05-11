@@ -80,9 +80,6 @@ jobs:
       - name: "[Latest KCM Release] Install CLI"
         run: |
           make -C kcm-repo cli-install
-      - name: "[Latest Release] Install Istio CLI"
-        run: |
-          make cli-install
       - name: "[Latest KCM Release] Create management KIND cluster"
         run: |
           make -C kcm-repo dev-apply
@@ -90,6 +87,9 @@ jobs:
           kubectl patch mgmt/kcm --type='json' -p '[{"op": "replace", "path": "/spec/providers", "value":[{"name":"projectsveltos"}]}]'
           kubectl wait --for=condition=Ready mgmt/kcm --timeout=10m
           kubectl wait --for condition=available deployment/kcm-controller-manager --timeout=1m -n kcm-system
+      - name: "[Latest Istio Release] Install CLI"
+        run: |
+          make cli-install
       - name: "[Latest Istio Release] Push Helm Charts"
         run: |
           make helm-push
@@ -209,3 +209,14 @@ jobs:
             echo "Attempt $i failed, retrying in 15s..."
             sleep 15
           done
+      - name: Make support-bundle
+        if: ${{ failure() }}
+        run: |
+          make support-bundle
+          make support-bundle KUBECTL_CONTEXT=kind-adopted-cluster
+      - name: Archive support-bundle
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-support-bundles.tar.gz
+          path: ./support-bundle-*.tar.gz

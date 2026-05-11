@@ -12,6 +12,9 @@ $(CHARTS_PACKAGE_DIR): | $(LOCALBIN)
 	rm -rf $(CHARTS_PACKAGE_DIR)
 	mkdir -p $(CHARTS_PACKAGE_DIR)
 
+HOSTOS := $(shell go env GOHOSTOS)
+HOSTARCH := $(shell go env GOHOSTARCH)
+
 KCM_NAMESPACE ?= kcm-system
 CONTAINER_TOOL ?= docker
 KIND_NETWORK ?= kind
@@ -120,6 +123,15 @@ dev-adopted-deploy: dev kind envsubst ## Create adopted cluster deployment
 	$(ENVSUBST) -no-unset -i demo/creds/adopted-credentials.yaml \
 	| $(KUBECTL) apply -f -
 
+.PHONY: support-bundle
+support-bundle: SUPPORT_BUNDLE_OUTPUT=$(CURDIR)/support-bundle-$(shell date +"%Y-%m-%dT%H_%M_%S")
+support-bundle: support-bundle-cli ## Create and analyze support bundle given optional `KUBECTL_CONTEXT`.
+	@KUBECTL="$(KUBECTL)" \
+	KUBECTL_CONTEXT="$(KUBECTL_CONTEXT)" \
+	SUPPORT_BUNDLE_CLI="$(SUPPORT_BUNDLE_CLI)" \
+	SUPPORT_BUNDLE_OUTPUT="$(SUPPORT_BUNDLE_OUTPUT)" \
+	scripts/create-support-bundle.sh
+
 ## Tool Binaries
 HELM ?= $(LOCALBIN)/helm-$(HELM_VERSION)
 HELM_UPGRADE = $(HELM) upgrade -i --reset-values --wait
@@ -128,6 +140,7 @@ KIND ?= $(LOCALBIN)/kind-$(KIND_VERSION)
 YQ ?= $(LOCALBIN)/yq-$(YQ_VERSION)
 ENVSUBST ?= $(LOCALBIN)/envsubst-$(ENVSUBST_VERSION)
 KUBECTL ?= kubectl
+SUPPORT_BUNDLE_CLI ?= $(LOCALBIN)/support-bundle-$(SUPPORT_BUNDLE_CLI_VERSION)
 
 export YQ
 
@@ -136,6 +149,7 @@ HELM_VERSION ?= v3.18.5
 YQ_VERSION ?= v4.44.2
 KIND_VERSION ?= v0.27.0
 ENVSUBST_VERSION ?= v1.4.2
+SUPPORT_BUNDLE_CLI_VERSION ?= v0.117.0
 
 .PHONY: envsubst
 envsubst: $(ENVSUBST)
@@ -163,6 +177,13 @@ $(HELM): | $(LOCALBIN)
 .PHONY: cli-install
 cli-install: yq helm kind ## Install the necessary CLI tools for deployment, development and testing.
 
+.PHONY: support-bundle-cli
+support-bundle-cli: $(SUPPORT_BUNDLE_CLI) ## Download support-bundle locally if necessary.
+$(SUPPORT_BUNDLE_CLI): | $(LOCALBIN)
+	curl -sL --fail https://github.com/replicatedhq/troubleshoot/releases/download/$(SUPPORT_BUNDLE_CLI_VERSION)/support-bundle_$(HOSTOS)_$(HOSTARCH).tar.gz | tar -xz -C $(LOCALBIN) && \
+	mv $(LOCALBIN)/support-bundle $(SUPPORT_BUNDLE_CLI) && \
+	chmod +x $(SUPPORT_BUNDLE_CLI)
+
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
 # $2 - package url which can be installed
@@ -176,3 +197,4 @@ GOBIN=$(LOCALBIN) go install $${package} ;\
 if [ ! -f $(1) ]; then mv -f "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1); fi ;\
 }
 endef
+
