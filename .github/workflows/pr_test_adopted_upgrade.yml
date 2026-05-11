@@ -166,7 +166,8 @@ jobs:
           make -C kcm-repo cli-install
       - name: "[Main KCM Branch] Upgrade KCM"
         run: |
-          make kcm-dev-upgrade KCM_REPO_PATH="kcm-repo"
+          make -C kcm-repo dev-upgrade
+          kubectl wait --for=condition=Ready mgmt/kcm --timeout=10m
           kubectl patch mgmt/kcm --type='json' -p '[{"op": "replace", "path": "/spec/providers", "value":[{"name":"projectsveltos"}]}]'
       - name: "[PR] Go version"
         id: main-istio-go-version
