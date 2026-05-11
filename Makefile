@@ -130,7 +130,7 @@ support-bundle: support-bundle-cli ## Create and analyze support bundle given op
 	KUBECTL_CONTEXT="$(KUBECTL_CONTEXT)" \
 	SUPPORT_BUNDLE_CLI="$(SUPPORT_BUNDLE_CLI)" \
 	SUPPORT_BUNDLE_OUTPUT="$(SUPPORT_BUNDLE_OUTPUT)" \
-	scripts/create-support-bundle.sh
+	scripts/create_support_bundle.sh
 
 ## Tool Binaries
 HELM ?= $(LOCALBIN)/helm-$(HELM_VERSION)
