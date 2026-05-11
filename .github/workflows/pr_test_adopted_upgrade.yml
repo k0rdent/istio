@@ -113,8 +113,7 @@ jobs:
         run: docker run -d --rm --network kind -v /var/run/docker.sock:/var/run/docker.sock registry.k8s.io/cloud-provider-kind/cloud-controller-manager:v0.10.0
       - name: "[Latest Istio Release] Deploy Istio components on Child adopted cluster"
         run: |
-          kubectl apply -f demo/clusters/adopted-cluster.yaml
-          kubectl wait --for=condition=ServicesInReadyState clusterdeployment/adopted-cluster -n kcm-system --timeout=10m
+          make dev-child-deploy-adopted
       - name: "[Pre-upgrade] Deploy server on Child adopted cluster"
         run: |
           kubectl config use-context kind-adopted-cluster
@@ -194,11 +193,10 @@ jobs:
           
       - name: "[PR] Deploy Istio components on Child adopted cluster"
         run: |
-          kubectl apply -f demo/clusters/adopted-cluster.yaml
+          make dev-child-deploy-adopted
 
       - name: "[Post-upgrade] Verify cross-cluster connectivity"
         run: |
-          kubectl wait --for=condition=Ready clusterdeployment/adopted-cluster -n kcm-system --timeout=10m
           SLEEP_POD=$(kubectl get pod -n sample -l app=sleep -o jsonpath='{.items[0].metadata.name}')
           for i in $(seq 1 20); do
             if kubectl exec -n sample -c sleep "$SLEEP_POD" -- curl -sSf helloworld.sample:5000/hello; then

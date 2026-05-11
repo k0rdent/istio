@@ -123,6 +123,12 @@ dev-adopted-deploy: dev kind envsubst ## Create adopted cluster deployment
 	$(ENVSUBST) -no-unset -i demo/creds/adopted-credentials.yaml \
 	| $(KUBECTL) apply -f -
 
+.PHONY: dev-child-deploy-adopted
+dev-child-deploy-adopted: dev ## Deploy regional adopted cluster with istio using k0rdent
+	cp -f demo/clusters/adopted-cluster.yaml dev/adopted-cluster.yaml
+	$(KUBECTL) apply -f dev/adopted-cluster.yaml
+	./scripts/wait_helm_charts.bash $(HELM) $(YQ) kind-adopted-cluster "k0rdent-istio istio-gateway" "k0rdent-istio"
+
 .PHONY: support-bundle
 support-bundle: SUPPORT_BUNDLE_OUTPUT=$(CURDIR)/support-bundle-$(shell date +"%Y-%m-%dT%H_%M_%S")
 support-bundle: support-bundle-cli ## Create and analyze support bundle given optional `KUBECTL_CONTEXT`.
