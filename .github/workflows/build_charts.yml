@@ -1,11 +1,7 @@
 name: "Build and push helm charts"
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "charts/**"
+  workflow_call:
 
 jobs:
   build:
@@ -18,7 +14,8 @@ jobs:
     steps:
       - name: Checkout git repo
         uses: actions/checkout@v4
-        # Only a single commit is fetched by default, not whole tree.
+        with:
+          fetch-depth: 0
 
       - name: Install Helm
         uses: azure/setup-helm@v4
@@ -35,7 +32,7 @@ jobs:
               | map("helm repo add " + .name + " " + .repository)[]' "$dir/Chart.yaml" | sh
             helm dependency update "$dir"
 
-            version=$(yq .version "$dir/Chart.yaml")-${{ github.sha }}
+            version=$(git describe --tags --always)
             helm package "$dir" --version "$version" --app-version "$version"
             chart_name=$(yq .name "$dir/Chart.yaml")
             mv "$chart_name-$version.tgz" build/

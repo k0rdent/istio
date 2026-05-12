@@ -142,7 +142,7 @@ operator:
     # and binds it to the service account of operator.
     create: true
 
-  # -- Image of the kof operator.
+  # -- Image of the istio operator.
   image:
     registry: ghcr.io/k0rdent
     repository: istio/istio-operator-controller

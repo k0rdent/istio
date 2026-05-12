@@ -1,0 +1,96 @@
+name: Test Helm Charts and Istio Operator
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+      - release/*
+    paths:
+      - "istio-operator/**"
+      - "charts/**"
+      - "!**.md"
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/shared-setup
+      - name: Fetch PR Ref and Checkout Repo
+        uses: ./.github/actions/fetch-pr-ref
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: istio-operator/go.mod
+          cache-dependency-path: istio-operator/go.sum
+      - name: Run Unit Tests
+        working-directory: ./istio-operator
+        run: make test
+
+  deploy:
+    name: Deploy Istio & KCM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/shared-setup
+      - name: Fetch PR Ref and Checkout Repo
+        uses: ./.github/actions/fetch-pr-ref
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: istio-operator/go.mod
+          cache-dependency-path: istio-operator/go.sum
+      - id: kcm_release
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          owner: k0rdent
+          repo: kcm
+          excludes: prerelease, draft
+      - name: Checkout KCM Latest Release repo
+        uses: actions/checkout@v5
+        with:
+          repository: k0rdent/kcm
+          ref: ${{ steps.kcm_release.outputs.release }}
+          path: kcm-repo
+      - name: Restore KCM CLI Cache
+        id: cache-kcm-cli
+        uses: actions/cache/restore@v4
+        with:
+          path: kcm-repo/bin
+          key: kcm-cli-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            kcm-cli-${{ runner.os }}-
+      - name: Install KCM CLI
+        run: |
+          make -C kcm-repo cli-install
+      - name: Save KCM CLI Cache
+        uses: actions/cache/save@v4
+        with:
+          path: kcm-repo/bin
+          key: kcm-cli-${{ runner.os }}-${{ github.sha }}-${{ github.run_id }}
+      - name: Apply KCM Dev Configuration
+        run: |
+          make -C kcm-repo dev-apply
+          kubectl wait --for create mgmt/kcm --timeout=1m
+          kubectl patch mgmt/kcm --type='json' -p '[{"op": "replace", "path": "/spec/providers", "value":[{"name":"projectsveltos"}]}]'
+          kubectl wait --for=condition=Ready mgmt/kcm --timeout=10m
+          kubectl wait --for condition=available deployment/kcm-controller-manager --timeout=1m -n kcm-system
+      - name: Push Istio Helm Charts
+        run: |
+          make cli-install
+          make registry-deploy
+          make helm-push
+      - name: Deploy Istio Components
+        run: |
+          make dev-istio-deploy
