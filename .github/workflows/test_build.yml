@@ -135,15 +135,11 @@ jobs:
       - name: Install k0rdent-istio
         run: |
           repo_lower=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          helm upgrade -i --reset-values \
+          helm upgrade -i --reset-values --wait --timeout 10m \
             --create-namespace -n istio-system k0rdent-istio \
             -f values.yaml \
             oci://ghcr.io/${repo_lower}/charts/k0rdent-istio \
             --version ${{ steps.istio_version.outputs.version }}
-
-      - name: Wait until all HelmReleases in istio-system namespace are ready
-        run: |
-          kubectl wait --for=condition=Ready helmreleases --all -n istio-system --timeout=15m
 
       - name: Show final state
         if: always()
