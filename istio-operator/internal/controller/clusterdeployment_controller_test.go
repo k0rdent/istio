@@ -12,6 +12,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
+	"github.com/k0rdent/istio/istio-operator/internal/labels"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +50,7 @@ var _ = Describe("ClusterDeployment Controller", func() {
 		}
 
 		clusterDeploymentLabels := map[string]string{
-			istio.IstioRoleLabel: "member",
+			labels.IstioRoleLabel: labels.IstioRoleLabelMemberValue,
 		}
 
 		clusterDeploymentAnnotations := map[string]string{}

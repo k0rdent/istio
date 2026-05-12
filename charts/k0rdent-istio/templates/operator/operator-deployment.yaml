@@ -59,7 +59,7 @@ spec:
             value: {{ .Release.Namespace }}
           - name: "RELEASE_NAME"
             value: {{ .Chart.Name }}
-          - name: "ISTIO_TEMPLATE_VERSION_SUFFIX"
+          - name: "RELEASE_VERSION"
             value: {{ .Chart.Version | replace "." "-" | quote }}
         image: "
           {{- if and $global.registry (ne $global.registry "docker.io") }}{{ $global.registry }}

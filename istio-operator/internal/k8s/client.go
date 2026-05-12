@@ -52,7 +52,7 @@ func NewKubeClientFromKubeconfig(kubeconfig []byte) (*KubeClient, error) {
 func GetKubeconfigFromClusterDeployment(ctx context.Context, client client.Client, cd *kcmv1beta1.ClusterDeployment) ([]byte, error) {
 	kubeconfigSecretName, err := GetKubeconfigSecretName(ctx, client, cd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get kubeconfig secret name: %v", err)
+		return nil, fmt.Errorf("failed to get kubeconfig secret name: %w", err)
 	}
 
 	return GetKubeconfigFromSecretInNamespace(ctx, client, kubeconfigSecretName, cd.Namespace)
@@ -65,7 +65,7 @@ func GetKubeconfigFromSecret(ctx context.Context, client client.Client, secretNa
 func GetKubeconfigFromSecretInNamespace(ctx context.Context, client client.Client, secretName, namespace string) ([]byte, error) {
 	secret, err := GetSecret(ctx, client, secretName, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secret: %v", err)
+		return nil, fmt.Errorf("failed to get secret: %w", err)
 	}
 
 	kubeconfig := GetSecretValue(secret)
@@ -79,7 +79,7 @@ func GetKubeconfigFromSecretInNamespace(ctx context.Context, client client.Clien
 func NewKubeClientFromSecret(ctx context.Context, client client.Client, secretName, namespace string) (*KubeClient, error) {
 	secret, err := GetSecret(ctx, client, secretName, namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secret: %v", err)
+		return nil, fmt.Errorf("failed to get secret: %w", err)
 	}
 
 	kubeconfig := GetSecretValue(secret)
@@ -89,7 +89,7 @@ func NewKubeClientFromSecret(ctx context.Context, client client.Client, secretNa
 
 	kubeClient, err := NewKubeClientFromKubeconfig(kubeconfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client from kubeconfig: %v", err)
+		return nil, fmt.Errorf("failed to create new client from kubeconfig: %w", err)
 	}
 
 	return kubeClient, nil

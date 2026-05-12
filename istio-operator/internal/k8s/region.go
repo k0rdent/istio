@@ -45,7 +45,7 @@ func GetKubeconfigByRegionName(ctx context.Context, client client.Client, region
 
 	region := new(kcmv1beta1.Region)
 	if err := client.Get(ctx, types.NamespacedName{Name: regionName}, region); err != nil {
-		return nil, fmt.Errorf("failed to get Region %s: %v", regionName, err)
+		return nil, fmt.Errorf("failed to get Region %s: %w", regionName, err)
 	}
 
 	if region.Spec.ClusterDeployment != nil {
@@ -54,12 +54,12 @@ func GetKubeconfigByRegionName(ctx context.Context, client client.Client, region
 			Name:      region.Spec.ClusterDeployment.Name,
 			Namespace: region.Spec.ClusterDeployment.Namespace,
 		}, cd); err != nil {
-			return nil, fmt.Errorf("failed to get ClusterDeployment %s: %v", region.Spec.ClusterDeployment.Name, err)
+			return nil, fmt.Errorf("failed to get ClusterDeployment %s: %w", region.Spec.ClusterDeployment.Name, err)
 		}
 
 		kubeconfig, err := GetKubeconfigFromClusterDeployment(ctx, client, cd)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get kubeconfig from ClusterDeployment: %v", err)
+			return nil, fmt.Errorf("failed to get kubeconfig from ClusterDeployment: %w", err)
 		}
 		return kubeconfig, nil
 	}

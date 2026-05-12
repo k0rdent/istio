@@ -1,13 +1,16 @@
 package istio
 
-import "fmt"
+import (
+	"fmt"
 
-const (
-	IstioRoleLabel = "k0rdent.mirantis.com/istio-role"
+	"github.com/k0rdent/istio/istio-operator/internal/labels"
 )
 
 // `child` is deprecated but still supported
-var IstioRoleLabelExpectedValues = []string{"member", "child"}
+var IstioRoleLabelExpectedValues = []string{
+	labels.IstioRoleLabelMemberValue,
+	labels.IstioRoleLabelChildValue,
+}
 
 // By default "istio-system"
 var IstioSystemNamespace string
@@ -15,14 +18,12 @@ var IstioSystemNamespace string
 // By default "k0rdent-istio"
 var IstioReleaseName string
 
-// By default ""; when set, service templates are referenced as
-// <release-name>-<template>-<suffix>.
-var IstioTemplateVersionSuffix string
+// By default is empty string, but can be set by the `release-version` flag or the `RELEASE_VERSION` environment variable.
+var ReleaseVersion string
 
 func ServiceTemplateName(template string) string {
-	if IstioTemplateVersionSuffix == "" {
+	if ReleaseVersion == "" {
 		return fmt.Sprintf("%s-%s", IstioReleaseName, template)
 	}
-
-	return fmt.Sprintf("%s-%s-%s", IstioReleaseName, template, IstioTemplateVersionSuffix)
+	return fmt.Sprintf("%s-%s-%s", IstioReleaseName, template, ReleaseVersion)
 }

@@ -6,9 +6,9 @@ import (
 	"time"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
-	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
+	label "github.com/k0rdent/istio/istio-operator/internal/labels"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -97,7 +97,7 @@ func (m *Manager) rotateSecrets(ctx context.Context) {
 func (m *Manager) getIstioClusters(ctx context.Context) ([]kcmv1beta1.ClusterDeployment, error) {
 	clustersList := kcmv1beta1.ClusterDeploymentList{}
 
-	requirement, err := labels.NewRequirement(istio.IstioRoleLabel, selection.Exists, nil)
+	requirement, err := labels.NewRequirement(label.IstioRoleLabel, selection.Exists, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create label requirement: %w", err)
 	}

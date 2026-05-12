@@ -14,12 +14,12 @@ type FakeRemoteSecretCreator struct{}
 
 func NewFakeManager(c client.Client) *RemoteSecretManager {
 	return &RemoteSecretManager{
-		client:                    c,
-		IIstioRemoteSecretCreator: NewFakeRemoteSecretCreator(),
+		client:  c,
+		creator: NewFakeRemoteSecretCreator(),
 	}
 }
 
-func NewFakeRemoteSecretCreator() IIstioRemoteSecretCreator {
+func NewFakeRemoteSecretCreator() RemoteSecretCreator {
 	return &FakeRemoteSecretCreator{}
 }
 

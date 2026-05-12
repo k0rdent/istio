@@ -24,8 +24,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/hash"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
+	"github.com/k0rdent/istio/istio-operator/internal/labels"
 	"github.com/spf13/pflag"
 	"istio.io/istio/pkg/config/constants"
 	mcluster "istio.io/istio/pkg/kube/multicluster"
@@ -260,6 +262,8 @@ func createRemoteServiceAccountSecret(kubeconfig *api.Config, clusterName, secNa
 				clusterNameAnnotationKey: clusterName,
 			},
 			Labels: map[string]string{
+				labels.K0rdentIstioVersionLabel:  istio.ReleaseVersion,
+				labels.ManagedByLabel:            labels.ManagedByIstioOperator,
 				mcluster.MultiClusterSecretLabel: "true",
 			},
 		},
@@ -460,8 +464,12 @@ func getOrCreateServiceAccountSecret(
 
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        secretName,
-			Namespace:   opt.Namespace,
+			Name:      secretName,
+			Namespace: opt.Namespace,
+			Labels: map[string]string{
+				labels.K0rdentIstioVersionLabel: istio.ReleaseVersion,
+				labels.ManagedByLabel:           labels.ManagedByIstioOperator,
+			},
 			Annotations: map[string]string{v1.ServiceAccountNameKey: serviceAccount.Name},
 		},
 		Type: v1.SecretTypeOpaque,
