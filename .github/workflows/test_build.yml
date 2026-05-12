@@ -124,7 +124,7 @@ jobs:
           k0rdent-istio:
             repo:
               spec:
-                url: ghcr.io/${repo_lower}/charts
+                url: oci://ghcr.io/${repo_lower}/charts
           EOF
           echo "Generated values.yaml:"
           cat values.yaml
