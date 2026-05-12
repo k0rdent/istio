@@ -136,7 +136,7 @@ jobs:
         run: |
           repo_lower=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           helm upgrade -i --reset-values \
-            --create-namespace -n k0rdent-istio k0rdent-istio \
+            --create-namespace -n istio-system k0rdent-istio \
             -f values.yaml \
             oci://ghcr.io/${repo_lower}/charts/k0rdent-istio \
             --version ${{ steps.istio_version.outputs.version }}
