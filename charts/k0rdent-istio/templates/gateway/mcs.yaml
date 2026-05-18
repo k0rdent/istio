@@ -16,6 +16,7 @@ spec:
         namespace: {{ .Release.Namespace }}
         template: {{ .Chart.Name }}-gateway-{{ $chartVersion }}
         values: |
+          name: istio-gateway-{{ `{{ printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name | adler32sum }}` }}
           networkGateway: {{ `{{ .Cluster.metadata.name }}` }}-network
           labels:
             istio: eastwestgateway
