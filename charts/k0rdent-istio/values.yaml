@@ -73,9 +73,11 @@ intermediateCA:
   # -- Whether to create an Issuer resource for this intermediate CA
   issuer: true
 
-cert-manager-istio-csr:
+certManagerIstioCsr:
   # -- Enable installation of cert-manager-istio-csr. Set to false if it is already installed in the cluster.
   enabled: true
+
+cert-manager-istio-csr:
   app:
     tls:
       # -- DNS names for the cert-manager Istio CSR service

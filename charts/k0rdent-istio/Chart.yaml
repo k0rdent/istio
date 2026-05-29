@@ -7,7 +7,7 @@ dependencies:
   - name: cert-manager-istio-csr
     version: "0.14.0"
     repository: "https://charts.jetstack.io"
-    condition: cert-manager-istio-csr.enabled
+    condition: certManagerIstioCsr.enabled
   - alias: istiobase
     name: base
     version: "1.25.3"
