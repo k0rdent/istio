@@ -11,5 +11,5 @@ dependencies:
 - name: kgst
   repository: oci://ghcr.io/k0rdent/catalog/charts
   version: 2.0.1
-digest: sha256:e40723fecc7988faf1b07e90b49b9fd0a6b3dfdc65b9bde6f9973ad5590620c4
-generated: "2026-02-26T17:17:14.822001+02:00"
+digest: sha256:d7eaeef7c326fa0e52c7e78492ea57d26bd01b7bb22f8510d9cf01040fe99dbd
+generated: "2026-05-29T14:22:34.844215+03:00"

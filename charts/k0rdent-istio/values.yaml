@@ -73,6 +73,10 @@ intermediateCA:
   # -- Whether to create an Issuer resource for this intermediate CA
   issuer: true
 
+certManagerIstioCsr:
+  # -- Enable installation of cert-manager-istio-csr. Set to false if it is already installed in the cluster.
+  enabled: true
+
 cert-manager-istio-csr:
   app:
     tls:
@@ -91,7 +95,13 @@ cert-manager-istio-csr:
       # -- Cluster ID used by the cert-manager Istio CSR server
       clusterID: management
 
+istiobase:
+  # -- Enable installation of istio-base. Set to false if it is already installed in the cluster.
+  enabled: true
+
 istiod:
+  # -- Enable installation of istiod. Set to false if it is already installed in the cluster.
+  enabled: true
   # -- Mount and reference cert-manager issued TLS and CA certificates
   extraContainerArgs:
     - --tlsCertFile=/etc/cert-manager/tls/tls.crt
