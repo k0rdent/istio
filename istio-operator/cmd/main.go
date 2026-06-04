@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 	"sync"
 
@@ -207,6 +208,11 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if env.IsSelfManagementEnabled() {
+		if managementClusterAPIServer == "" {
+			setupLog.Error(nil, fmt.Sprintf("--management-cluster-api-server or %s env is required when SELF_MANAGEMENT=true and running in-cluster", env.ManagementClusterAPIServerEnv))
+			os.Exit(1)
+		}
+
 		if err := mgr.Add(&controller.SelfManagementReconciler{
 			LocalKubeClient:                kubeClient,
 			RemoteSecretManager:            remotesecret.New(mgr.GetClient()),

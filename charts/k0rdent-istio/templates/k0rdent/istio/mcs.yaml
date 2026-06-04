@@ -26,8 +26,6 @@ spec:
           rootCA:
             enabled: false
           isManagement: false
-          managementCluster:
-            includeInMesh: false
           intermediateCA:
             certificate: false
             issuer: true

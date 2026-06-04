@@ -194,13 +194,13 @@ func (rs *RemoteSecretManager) TryCreateForLocalCluster(ctx context.Context, kub
 	}
 
 	if exists {
-		log.Info("Remote secret already exists for management cluster")
-		return nil
+		log.Info("Remote secret already exists for management cluster; rotating to refresh token")
 	}
 
 	remoteSecret, warn, err := CreateRemoteSecret(
 		ctx,
 		RemoteSecretOptions{
+			AllowOverwrite: true,
 			Type:           SecretTypeRemote,
 			AuthType:       RemoteSecretAuthTypeBearerToken,
 			ClusterName:    clusterName,
