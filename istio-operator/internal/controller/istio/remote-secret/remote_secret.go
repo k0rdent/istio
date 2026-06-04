@@ -524,7 +524,8 @@ func getCAcert(client *k8s.KubeClient) ([]byte, error) {
 	currentCtx := rawConfig.CurrentContext
 	ctx := rawConfig.Contexts[currentCtx]
 	if ctx == nil {
-		return nil, fmt.Errorf("no current context found")
+		// No current context, likely running in-cluster. Fall back to the REST config CA.
+		return getCAcertFromRestConfig(client)
 	}
 
 	cluster := rawConfig.Clusters[ctx.Cluster]
@@ -541,6 +542,23 @@ func getCAcert(client *k8s.KubeClient) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("no CA certificate found for cluster %q", ctx.Cluster)
+}
+
+func getCAcertFromRestConfig(client *k8s.KubeClient) ([]byte, error) {
+	restCfg, err := client.Config.ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get REST config: %w", err)
+	}
+
+	if len(restCfg.CAData) > 0 {
+		return restCfg.CAData, nil
+	}
+
+	if restCfg.CAFile != "" {
+		return os.ReadFile(restCfg.CAFile)
+	}
+
+	return nil, fmt.Errorf("no CA certificate found in REST config")
 }
 
 func getServiceAccountToken(ctx context.Context, client *k8s.KubeClient, saName, namespace string) (string, error) {

@@ -54,6 +54,8 @@ spec:
       - name: operator
         command:
         - "/operator"
+        args:
+        - "--management-cluster-name={{ $.Values.managementCluster.name }}"
         env:
           - name: "RELEASE_NAMESPACE"
             value: {{ .Release.Namespace }}
@@ -61,6 +63,10 @@ spec:
             value: {{ .Chart.Name }}
           - name: "RELEASE_VERSION"
             value: {{ .Chart.Version | replace "." "-" | quote }}
+          - name: "SELF_MANAGEMENT"
+            value: {{ .Values.managementCluster.includeInMesh | default false | quote }}
+          - name: "MANAGEMENT_CLUSTER_API_SERVER"
+            value: {{ .Values.managementCluster.apiServer | default "" | quote }}
         image: "
           {{- if and $global.registry (ne $global.registry "docker.io") }}{{ $global.registry }}
           {{- else }}{{ .Values.operator.image.registry }}
