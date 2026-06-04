@@ -209,7 +209,12 @@ func main() {
 
 	if env.IsSelfManagementEnabled() {
 		if managementClusterAPIServer == "" {
-			setupLog.Error(nil, fmt.Sprintf("--management-cluster-api-server or %s env is required when SELF_MANAGEMENT=true and running in-cluster", env.ManagementClusterAPIServerEnv))
+			setupLog.Error(nil,
+				fmt.Sprintf(
+					"--management-cluster-api-server or %s env is required when SELF_MANAGEMENT=true and running in-cluster",
+					env.ManagementClusterAPIServerEnv,
+				),
+			)
 			os.Exit(1)
 		}
 
