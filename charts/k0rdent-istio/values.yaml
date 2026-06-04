@@ -5,6 +5,19 @@ kcm:
 # -- Enable management mode for this deployment
 isManagement: true
 
+# -- Configuration for the management cluster's participation in the Istio mesh
+managementCluster:
+  # -- When true, the management cluster is itself enrolled as a mesh member.
+  # The operator will bootstrap Istio resources (remote secret, CA certificate,
+  # and east-west gateway) for the management cluster in addition to child clusters.
+  includeInMesh: true
+
+  # -- Externally accessible URL of the management cluster Kubernetes API server.
+  # Required when includeInMesh is true and the operator runs in-cluster, so that Istiod on
+  # member clusters can reach the management cluster API server (e.g. "https://1.2.3.4:6443").
+  # Leave empty to derive the URL from the local kubeconfig (suitable for local development).
+  apiServer: "https://kcm-dev-control-plane:6443"
+
 cert-manager:
   # -- ServiceTemplate name
   template: cert-manager-v1-19-3

@@ -10,6 +10,8 @@ rules:
   resources:
   - secrets
   - events
+  - serviceaccounts
+  - serviceaccounts/token
   verbs:
   - create
   - delete

@@ -177,6 +177,57 @@ func (rs *RemoteSecretManager) deleteDeprecatedSecret(ctx context.Context, name,
 	return rs.client.Delete(ctx, secret)
 }
 
+// TryCreateForLocalCluster creates a remote secret for the local (management) cluster using the provided KubeClient.
+// Unlike TryCreate, it does not look up a kubeconfig secret from Kubernetes; instead it uses the provided client directly.
+// serverOverride, when non-empty, replaces the server URL in the kubeconfig embedded in the secret.
+// This must be set to the externally accessible API server address so that Istiod on member clusters
+// can reach the management cluster across cluster boundaries.
+func (rs *RemoteSecretManager) TryCreateForLocalCluster(ctx context.Context, kubeClient *k8s.KubeClient, clusterName, clusterNamespace, serverOverride string) error {
+	log := log.FromContext(ctx)
+	log.Info("Trying to create remote secret for management cluster")
+
+	secretName := GetRemoteSecretName(clusterName, clusterNamespace)
+	secret := &corev1.Secret{}
+	exists, err := utils.IsResourceExists(ctx, rs.client, secret, secretName, istio.IstioSystemNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to check remote secret: %w", err)
+	}
+
+	if exists {
+		log.Info("Remote secret already exists for management cluster")
+		return nil
+	}
+
+	remoteSecret, warn, err := CreateRemoteSecret(
+		ctx,
+		RemoteSecretOptions{
+			Type:           SecretTypeRemote,
+			AuthType:       RemoteSecretAuthTypeBearerToken,
+			ClusterName:    clusterName,
+			ServerOverride: serverOverride,
+			KubeOptions: KubeOptions{
+				Namespace: istio.IstioSystemNamespace,
+			},
+		},
+		clusterNamespace,
+		kubeClient,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get remote secret: %w", err)
+	}
+
+	if warn != nil {
+		log.Info("Warning when generating remote secret for management cluster", "warning", warn)
+	}
+
+	if err := rs.createSecretResource(ctx, remoteSecret); err != nil {
+		return fmt.Errorf("failed to create remote secret resource: %w", err)
+	}
+
+	log.Info("Remote secret successfully created for management cluster")
+	return nil
+}
+
 func (rs *RemoteSecretManager) sendCreationEvent(cd *kcmv1beta1.ClusterDeployment) {
 	record.Eventf(
 		cd,

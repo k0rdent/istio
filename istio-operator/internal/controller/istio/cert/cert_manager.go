@@ -31,6 +31,31 @@ func New(client client.Client) *CertManager {
 	}
 }
 
+// TryCreateForCluster creates an Istio CA certificate for the given cluster name and namespace without
+// requiring a ClusterDeployment object. This is used for the management cluster itself.
+func (cm *CertManager) TryCreateForCluster(ctx context.Context, clusterName, clusterNamespace string) error {
+	log := log.FromContext(ctx)
+	log.Info("Trying to create certificate for management cluster")
+
+	if err := cm.tryDeleteDeprecatedCertificate(ctx, clusterName, clusterNamespace); err != nil {
+		log.Error(err, "Failed to delete deprecated Istio certificate")
+	}
+
+	cert := cm.generateClusterCACertificateByName(clusterName, clusterNamespace)
+	log.Info("Creating Intermediate Istio CA certificate for management cluster", "certificateName", cert.Name)
+
+	if err := cm.k8sClient.Create(ctx, cert); err != nil {
+		if errors.IsAlreadyExists(err) {
+			log.Info("Istio CA certificate already exists", "certificateName", cert.Name)
+			return nil
+		}
+		return fmt.Errorf("failed to create istio certificate: %w", err)
+	}
+
+	log.Info("Istio CA certificate successfully created for management cluster", "certificateName", cert.Name)
+	return nil
+}
+
 func (cm *CertManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment) error {
 	log := log.FromContext(ctx)
 	log.Info("Trying to create certificate")
@@ -90,8 +115,12 @@ func (cm *CertManager) createCertificate(ctx context.Context, cert *cmv1.Certifi
 }
 
 func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeployment) *cmv1.Certificate {
-	certName := GetCertName(cd.Name, cd.Namespace)
-	caSecretName := GetCASecretName(cd.Name, cd.Namespace)
+	return cm.generateClusterCACertificateByName(cd.Name, cd.Namespace)
+}
+
+func (cm *CertManager) generateClusterCACertificateByName(clusterName, clusterNamespace string) *cmv1.Certificate {
+	certName := GetCertName(clusterName, clusterNamespace)
+	caSecretName := GetCASecretName(clusterName, clusterNamespace)
 
 	return &cmv1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -104,7 +133,7 @@ func (cm *CertManager) generateClusterCACertificate(cd *kcmv1beta1.ClusterDeploy
 		},
 		Spec: cmv1.CertificateSpec{
 			IsCA:       true,
-			CommonName: fmt.Sprintf("%s CA", cd.Name),
+			CommonName: fmt.Sprintf("%s CA", clusterName),
 			Subject: &cmv1.X509Subject{
 				Organizations: []string{"Istio"},
 			},

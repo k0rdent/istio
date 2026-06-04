@@ -25,9 +25,11 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/k0rdent/istio/istio-operator/internal/controller"
+	"github.com/k0rdent/istio/istio-operator/internal/controller/env"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/cert"
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
@@ -65,21 +67,31 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var secureMetrics bool
-	var enableHTTP2 bool
-	var tlsOpts []func(*tls.Config)
+	var (
+		managementClusterName      string
+		managementClusterAPIServer string
+		metricsAddr                string
+		probeAddr                  string
+		enableLeaderElection       bool
+		secureMetrics              bool
+		enableHTTP2                bool
+		tlsOpts                    []func(*tls.Config)
+	)
+
 	flag.StringVar(&istio.IstioSystemNamespace, "istio-namespace", "istio-system",
 		"Namespace where Istio is installed. Default is 'istio-system'.")
 	flag.StringVar(&istio.IstioReleaseName, "istio-release-name", "k0rdent-istio", "Name of the Istio release.")
 	flag.StringVar(
 		&istio.ReleaseVersion,
 		"release-version",
-		os.Getenv("RELEASE_VERSION"),
+		env.GetReleaseVersion(),
 		"K0rdent Istio release version (for example: 0-4-2).",
 	)
+	flag.StringVar(&managementClusterName, "management-cluster-name", "management",
+		"Name used to identify the management cluster in the Istio mesh. Should match global.multiCluster.clusterName.")
+	flag.StringVar(&managementClusterAPIServer, "management-cluster-api-server", env.GetManagementClusterAPIServer(),
+		"Externally accessible URL of the management cluster API server (e.g. https://1.2.3.4:6443). "+
+			"Required when running in-cluster so that Istiod on member clusters can reach the management API server.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -90,7 +102,6 @@ func main() {
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-
 	opts := zap.Options{
 		Development: true,
 	}
@@ -194,6 +205,21 @@ func main() {
 	}
 
 	// +kubebuilder:scaffold:builder
+
+	if env.IsSelfManagementEnabled() {
+		if err := mgr.Add(&controller.SelfManagementReconciler{
+			LocalKubeClient:                kubeClient,
+			RemoteSecretManager:            remotesecret.New(mgr.GetClient()),
+			IstioCertManager:               cert.New(mgr.GetClient()),
+			RemoteSecretPropagationManager: multicluster.New(mgr.GetClient()),
+			ManagementClusterName:          managementClusterName,
+			ManagementClusterAPIServer:     managementClusterAPIServer,
+			ManagementClusterNamespace:     istio.IstioSystemNamespace,
+		}); err != nil {
+			setupLog.Error(err, "unable to add self-management runnable")
+			os.Exit(1)
+		}
+	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

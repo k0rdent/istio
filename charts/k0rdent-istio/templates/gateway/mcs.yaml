@@ -1,38 +1,62 @@
 {{- if .Values.isManagement }}
 {{- $chartVersion := .Chart.Version | replace "." "-" }}
+{{- $mcsConfigs := list }}
+
+{{- if .Values.managementCluster.includeInMesh }}
+{{- $mcsConfigs = append $mcsConfigs (dict
+    "name" (printf "%s-gateway-mgmt" .Chart.Name)
+    "selfManagement" true
+    "networkGateway" .Values.global.network
+) }}
+{{- end }}
+
+{{- $mcsConfigs = append $mcsConfigs (dict
+    "name" (printf "%s-gateway" .Chart.Name)
+    "selfManagement" false
+    "networkGateway" "{{ .Cluster.metadata.name }}-network"
+) }}
+
+{{- range $cfg := $mcsConfigs }}
+---
 apiVersion: k0rdent.mirantis.com/v1beta1
 kind: MultiClusterService
 metadata:
-  name: {{ .Chart.Name }}-gateway
+  name: {{ $cfg.name }}
 spec:
+  {{- if not $cfg.selfManagement }}
   clusterSelector:
     matchLabels:
       k0rdent.mirantis.com/istio-gateway: "true"
+  {{- end }}
   dependsOn:
-    - {{ .Chart.Name }}-network
+    - {{ $.Chart.Name }}-network
   serviceSpec:
+  {{- if $cfg.selfManagement }}
+    provider:
+      selfManagement: true
+  {{- end }}
     services:
       - name: istio-gateway
-        namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-gateway-{{ $chartVersion }}
+        namespace: {{ $.Release.Namespace }}
+        template: {{ $.Chart.Name }}-gateway-{{ $chartVersion }}
         values: |
           name: istio-gateway-{{ `{{ printf "%s-%s" .Cluster.metadata.namespace .Cluster.metadata.name | adler32sum }}` }}
-          networkGateway: {{ `{{ .Cluster.metadata.name }}` }}-network
+          networkGateway: {{ $cfg.networkGateway }}
           labels:
             istio: eastwestgateway
 
-      {{- if .Values.gateway.resource }}
+      {{- if $.Values.gateway.resource }}
       - name: gateway-template
-        namespace: {{ .Release.Namespace }}
-        template: {{ .Chart.Name }}-propagation-{{ $chartVersion }}
+        namespace: {{ $.Release.Namespace }}
+        template: {{ $.Chart.Name }}-propagation-{{ $chartVersion }}
         dependsOn:
           - name: istio-gateway
-            namespace: {{ .Release.Namespace }}
+            namespace: {{ $.Release.Namespace }}
         values: |
           propagation:
             enabled: true
             data: |
-{{- $gatewayResource := .Values.gateway.resource }}
+{{- $gatewayResource := $.Values.gateway.resource }}
 {{- $processedResource := deepCopy $gatewayResource }}
 {{- if $processedResource.spec.servers }}
 {{- range $serverIdx, $server := $processedResource.spec.servers }}
@@ -47,4 +71,5 @@ spec:
 {{- end }}
 {{ toYaml $processedResource | nindent 14 }}
       {{- end }}
+{{- end }}
 {{- end }}
