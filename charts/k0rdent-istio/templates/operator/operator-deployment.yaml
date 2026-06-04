@@ -55,7 +55,7 @@ spec:
         command:
         - "/operator"
         args:
-        - "--management-cluster-name={{ $global.multiCluster.clusterName | default "management" }}"
+        - "--management-cluster-name={{ $.Values.managementCluster.name }}"
         env:
           - name: "RELEASE_NAMESPACE"
             value: {{ .Release.Namespace }}

@@ -1,0 +1,127 @@
+name: Test Child to Management Cluster Connectivity
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+      - release/*
+    paths:
+      - "istio-operator/**"
+      - "charts/**"
+      - "!**.md"
+      - ".github/workflows/pr_test_child_to_mgmt_connectivity.yml"
+jobs:
+  deploy:
+    defaults:
+      run:
+        shell: bash --noprofile --norc -euo pipefail {0}
+    name: Deploy Istio & KCM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - uses: ./.github/actions/shared-setup
+      - name: Fetch PR Ref and Checkout Repo
+        uses: ./.github/actions/fetch-pr-ref
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: istio-operator/go.mod
+          cache-dependency-path: istio-operator/go.sum
+      - id: kcm_release
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          owner: k0rdent
+          repo: kcm
+          excludes: prerelease, draft
+      - name: Checkout KCM Latest Release repo
+        uses: actions/checkout@v5
+        with:
+          repository: k0rdent/kcm
+          ref: ${{ steps.kcm_release.outputs.release }}
+          path: kcm-repo
+      - name: "[Latest KCM Release] Install CLI"
+        run: |
+          make -C kcm-repo cli-install
+      - name: "[Latest KCM Release] Create management KIND cluster"
+        run: |
+          make -C kcm-repo dev-apply
+          kubectl wait --for create mgmt/kcm --timeout=1m
+          kubectl patch mgmt/kcm --type='json' -p '[{"op": "replace", "path": "/spec/providers", "value":[{"name":"projectsveltos"}]}]'
+          kubectl wait --for=condition=Ready mgmt/kcm --timeout=10m
+          kubectl wait --for condition=available deployment/kcm-controller-manager --timeout=1m -n kcm-system
+      - name: "[Istio PR] Install CLI"
+        run: |
+          make cli-install
+      - name: "[Istio PR] Push Helm Charts"
+        run: |
+          make helm-push
+      - name: "[Istio PR] Go version"
+        id: latest-istio-go-version
+        uses: arnested/go-version-action@v2
+        with:
+          working-directory: istio-operator
+      - name: "[Istio PR] Setup Go"
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: istio-operator/go.mod
+          cache: false
+      - name: "[Istio PR] Install Istio"
+        run: |
+          make dev-istio-deploy MGMT_INCLUDE_IN_MESH=true
+      - name: "[Istio PR] Run KIND Istio Child cluster"
+        run: |
+          make dev-adopted-deploy KIND_CLUSTER_NAME=adopted-cluster
+      - name: Run KIND cloud provider
+        run: docker run -d --rm --network kind -v /var/run/docker.sock:/var/run/docker.sock registry.k8s.io/cloud-provider-kind/cloud-controller-manager:v0.10.0
+      - name: "[Istio PR] Deploy Istio components on Child adopted cluster"
+        run: |
+          make dev-child-deploy-adopted
+      - name: "[Istio PR] Deploy server on Management cluster"
+        run: |
+          kubectl create namespace sample
+          kubectl label namespace sample istio-injection=enabled
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.27/samples/helloworld/helloworld.yaml -l service=helloworld -n sample
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.27/samples/helloworld/helloworld.yaml -l version=v1 -n sample
+          kubectl rollout status deployment/helloworld-v1 -n sample --timeout=5m
+      - name: "[Istio PR] Deploy curl pod on Child cluster"
+        run: |
+          kubectl config use-context kind-adopted-cluster
+          kubectl create namespace sample
+          kubectl label namespace sample istio-injection=enabled
+          kubectl apply -f https://raw.githubusercontent.com/istio/istio/release-1.27/samples/sleep/sleep.yaml -n sample
+          kubectl rollout status deployment/sleep -n sample --timeout=5m
+          kubectl config use-context kind-kcm-dev
+      - name: "[Istio PR] Verify cross-cluster connectivity"
+        run: |
+          kubectl config use-context kind-adopted-cluster
+          SLEEP_POD=$(kubectl get pod -n sample -l app=sleep -o jsonpath='{.items[0].metadata.name}')
+          for i in $(seq 1 20); do
+            if kubectl exec -n sample -c sleep "$SLEEP_POD" -- curl -sSf helloworld.sample:5000/hello; then
+              echo "Pre-upgrade connectivity verified"
+              break
+            fi
+            [ "$i" -eq 20 ] && { echo "Pre-upgrade connectivity check failed after 20 attempts"; exit 1; }
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Make support-bundle
+        if: ${{ failure() }}
+        run: |
+          make support-bundle
+          make support-bundle KUBECTL_CONTEXT=kind-adopted-cluster
+      - name: Archive support-bundle
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-bundles.tar.gz
+          path: ./support-bundle-*.tar.gz
