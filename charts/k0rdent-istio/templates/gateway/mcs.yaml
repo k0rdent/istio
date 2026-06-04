@@ -23,11 +23,14 @@ kind: MultiClusterService
 metadata:
   name: {{ $cfg.name }}
 spec:
-  {{- if not $cfg.selfManagement }}
   clusterSelector:
     matchLabels:
+    {{- if $cfg.selfManagement }}
+      k0rdent.mirantis.com/management-cluster: "true"
+      # Workaround for https://github.com/k0rdent/kcm/issues/2610
+    {{- else }}
       k0rdent.mirantis.com/istio-gateway: "true"
-  {{- end }}
+    {{- end }}
   dependsOn:
     - {{ $.Chart.Name }}-network
   serviceSpec:
