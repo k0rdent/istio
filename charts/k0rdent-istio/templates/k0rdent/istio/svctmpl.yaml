@@ -1,7 +1,7 @@
 {{- if .Values.isManagement }}
 {{- $chartVersion := .Chart.Version | replace "." "-" }}
-{{- /*
-TODO: Add back the main template to the list after the new release
+
+{{- $templates := list
   (dict
     "name" (printf "%s-main-%s" .Chart.Name $chartVersion)
     "prefix" (printf "%s-main" .Chart.Name)
@@ -9,9 +9,8 @@ TODO: Add back the main template to the list after the new release
     "chart" .Chart.Name
     "version" .Chart.Version
     "repo" (index .Values "k0rdent-istio" "repo" "name")
+    "legacyUpgrade" (printf "%s-0-5-0" .Chart.Name)
   )
-*/ -}}
-{{- $templates := list
   (dict
     "name" (printf "%s-gateway-%s" .Chart.Name $chartVersion)
     "prefix" (printf "%s-gateway-" .Chart.Name)
@@ -84,42 +83,14 @@ spec:
           version: {{ $templateDef.version | quote }}
       {{- end }}
     {{- end }}
-{{- end }}
----
-# TODO: Delete this ServiceTemplate after the new release
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: ServiceTemplate
-metadata:
-  name: {{ .Chart.Name }}-main-{{ $chartVersion }}
-  namespace: {{ .Values.kcm.namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  helm:
-    chartSpec:
-      chart: {{ .Chart.Name }}
-      version: {{ .Chart.Version | quote }}
-      interval: 10m0s
-      sourceRef:
-        kind: HelmRepository
-        name: {{ index .Values "k0rdent-istio" "repo" "name" }}
----
-# TODO: Delete this ServiceTemplateChain after the new release
-{{- $template := lookup "k0rdent.mirantis.com/v1beta1" "ServiceTemplate" .Values.kcm.namespace (printf "%s-0-5-0" .Chart.Name) }}
-{{- if $template }}
-apiVersion: k0rdent.mirantis.com/v1beta1
-kind: ServiceTemplateChain
-metadata:
-  name: {{ .Chart.Name }}-main-{{ $chartVersion }}
-  namespace: {{ .Values.kcm.namespace }}
-  annotations:
-    helm.sh/resource-policy: keep
-spec:
-  supportedTemplates:
-    - name: {{ .Chart.Name }}-main-{{ $chartVersion }}
-    - name: {{ .Chart.Name }}-0-5-0
+    {{- if $templateDef.legacyUpgrade }}
+      {{- $legacy := lookup "k0rdent.mirantis.com/v1beta1" "ServiceTemplate" $.Values.kcm.namespace $templateDef.legacyUpgrade }}
+      {{- if $legacy }}
+    - name: {{ $templateDef.legacyUpgrade }}
       availableUpgrades:
-        - name: {{ .Chart.Name }}-main-{{ $chartVersion }}
-          version: {{ .Chart.Version | quote }}
+        - name: {{ $templateDef.name }}
+          version: {{ $templateDef.version | quote }}
+      {{- end }}
+    {{- end }}
 {{- end }}
 {{- end }}
