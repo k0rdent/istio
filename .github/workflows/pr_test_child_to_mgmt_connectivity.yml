@@ -48,6 +48,11 @@ jobs:
           repository: k0rdent/kcm
           ref: ${{ steps.kcm_release.outputs.release }}
           path: kcm-repo
+      - name: "[Latest KCM Release] Setup Go"
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: kcm-repo/go.mod
+          cache: false
       - name: "[Latest KCM Release] Install CLI"
         run: |
           make -C kcm-repo cli-install
