@@ -150,10 +150,10 @@ func (m *RemoteSecretPropagationManager) generateMultiClusterService(cd *kcmv1be
 	if !utils.IsInMesh(cd) {
 		// Clusters without a mesh label must not share discovery credentials with
 		// other clusters, so the remote secret is only delivered to the cluster itself.
-		remoteValuesYAML = utils.MustSelfScopedPropagationServiceValuesYAML(remoteIdentifier, remoteSecretName)
+		remoteValuesYAML = utils.MustSelfScopedPropagationServiceValuesYAML(remoteIdentifier, cd.Namespace, cd.Name)
 	}
 	caSecretName := cert.GetCASecretName(cd.Name, cd.Namespace)
-	caValuesYAML := utils.MustScopedCAPropagationServiceValuesYAML(caIdentifier, caSecretName)
+	caValuesYAML := utils.MustScopedCAPropagationServiceValuesYAML(caIdentifier, cd.Namespace, cd.Name)
 
 	mcs := &kcmv1beta1.MultiClusterService{
 		ObjectMeta: metav1.ObjectMeta{

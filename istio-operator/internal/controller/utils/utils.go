@@ -129,32 +129,37 @@ func MustPropagationServiceValuesYAML(templateResourceIdentifier string) string 
 	return fmt.Sprintf("propagation:\n  enabled: true\n  data: |\n{{ copy %q | nindent 14 }}\n", templateResourceIdentifier)
 }
 
-// MustScopedCAPropagationServiceValuesYAML builds Helm values for propagation.yaml.
-// The target cluster hash is derived from the propagated source secret name suffix,
-// so values do not need a separately injected hash literal.
-func MustScopedCAPropagationServiceValuesYAML(templateResourceIdentifier, templateResourceName string) string {
-	return fmt.Sprintf(`{{- $eligible := or (eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q))) (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels %q) "true")) }}
+// isOwnClusterTemplateExpr returns a template expression that is true only when the
+// target cluster is the given cluster. Namespace and name are compared exactly, since
+// checksums of the cluster identity may collide.
+func isOwnClusterTemplateExpr(clusterNamespace, clusterName string) string {
+	return fmt.Sprintf("(and (eq .Cluster.metadata.namespace %q) (eq .Cluster.metadata.name %q))", clusterNamespace, clusterName)
+}
+
+// MustScopedCAPropagationServiceValuesYAML builds Helm values for propagation.yaml
+// that enable propagation only on the given cluster and on KCM region clusters.
+func MustScopedCAPropagationServiceValuesYAML(templateResourceIdentifier, clusterNamespace, clusterName string) string {
+	return fmt.Sprintf(`{{- $eligible := or %s (and .Cluster.metadata.labels (eq (index .Cluster.metadata.labels %q) "true")) }}
 propagation:
   enabled: {{ $eligible }}
   data: |
 {{ if $eligible }}
 {{ copy %q | nindent 14 }}
 {{ end }}
-`, templateResourceName, "k0rdent.mirantis.com/kcm-region-cluster", templateResourceIdentifier)
+`, isOwnClusterTemplateExpr(clusterNamespace, clusterName), "k0rdent.mirantis.com/kcm-region-cluster", templateResourceIdentifier)
 }
 
 // MustSelfScopedPropagationServiceValuesYAML builds Helm values for propagation.yaml
-// that enable propagation only on the cluster the source secret belongs to.
-// The target cluster hash is derived from the propagated source secret name suffix.
-func MustSelfScopedPropagationServiceValuesYAML(templateResourceIdentifier, templateResourceName string) string {
-	return fmt.Sprintf(`{{- $eligible := eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q)) }}
+// that enable propagation only on the given cluster.
+func MustSelfScopedPropagationServiceValuesYAML(templateResourceIdentifier, clusterNamespace, clusterName string) string {
+	return fmt.Sprintf(`{{- $eligible := %s }}
 propagation:
   enabled: {{ $eligible }}
   data: |
 {{ if $eligible }}
 {{ copy %q | nindent 14 }}
 {{ end }}
-`, templateResourceName, templateResourceIdentifier)
+`, isOwnClusterTemplateExpr(clusterNamespace, clusterName), templateResourceIdentifier)
 }
 
 // IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.

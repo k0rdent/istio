@@ -173,6 +173,11 @@ func newFakeClient(t *testing.T, objects ...client.Object) client.Client {
 		Build()
 }
 
+const (
+	testMesh      = "tenant-a"
+	otherTestMesh = "tenant-b"
+)
+
 func getMCS(t *testing.T, c client.Client, cd *kcmv1beta1.ClusterDeployment) *kcmv1beta1.MultiClusterService {
 	t.Helper()
 	mcs := &kcmv1beta1.MultiClusterService{}
@@ -215,7 +220,7 @@ func TestTryCreate_NoMeshLabelScopesRemoteSecretToSelf(t *testing.T) {
 		t.Errorf("expected DoesNotExist mesh selector, got %+v", mcs.Spec.ClusterSelector)
 	}
 	values := remoteSecretValues(t, mcs)
-	if !strings.Contains(values, "$eligible") || !strings.Contains(values, "adler32sum") {
+	if !strings.Contains(values, `(eq .Cluster.metadata.name "cluster-a")`) {
 		t.Errorf("expected remote secret propagation to be scoped to the cluster itself, got:\n%s", values)
 	}
 }
@@ -223,7 +228,7 @@ func TestTryCreate_NoMeshLabelScopesRemoteSecretToSelf(t *testing.T) {
 func TestTryCreate_MeshLabelPropagatesRemoteSecretToMesh(t *testing.T) {
 	setupTest(t, "1.0.0")
 	cd := newClusterDeployment()
-	cd.Labels[labels.IstioMeshLabel] = "tenant-a"
+	cd.Labels[labels.IstioMeshLabel] = testMesh
 	c := newFakeClient(t)
 
 	if err := New(c).TryCreate(context.Background(), cd); err != nil {
@@ -231,8 +236,8 @@ func TestTryCreate_MeshLabelPropagatesRemoteSecretToMesh(t *testing.T) {
 	}
 
 	mcs := getMCS(t, c, cd)
-	if got := mcs.Spec.ClusterSelector.MatchLabels[labels.IstioMeshLabel]; got != "tenant-a" {
-		t.Errorf("expected mesh selector %q, got %q", "tenant-a", got)
+	if got := mcs.Spec.ClusterSelector.MatchLabels[labels.IstioMeshLabel]; got != testMesh {
+		t.Errorf("expected mesh selector %q, got %q", testMesh, got)
 	}
 	if hasDoesNotExistMeshExpression(mcs) {
 		t.Errorf("unexpected DoesNotExist mesh selector")
@@ -253,8 +258,8 @@ func TestTryCreate_UpdatesMCSWhenMeshLabelChanges(t *testing.T) {
 		mesh string
 	}{
 		{"no mesh", ""},
-		{"mesh added", "tenant-a"},
-		{"mesh changed", "tenant-b"},
+		{"mesh added", testMesh},
+		{"mesh changed", otherTestMesh},
 		{"mesh removed", ""},
 	}
 
@@ -283,7 +288,7 @@ func TestTryCreate_UpdatesMCSWhenMeshLabelChanges(t *testing.T) {
 func TestTryCreate_UpdatesLegacyMCSWithoutSpecHash(t *testing.T) {
 	setupTest(t, "1.0.0")
 	cd := newClusterDeployment()
-	cd.Labels[labels.IstioMeshLabel] = "tenant-a"
+	cd.Labels[labels.IstioMeshLabel] = testMesh
 
 	// MCS created by an older operator version: same release version, no spec hash, wide selector.
 	legacy := &kcmv1beta1.MultiClusterService{
@@ -309,8 +314,8 @@ func TestTryCreate_UpdatesLegacyMCSWithoutSpecHash(t *testing.T) {
 	}
 
 	mcs := getMCS(t, c, cd)
-	if got := mcs.Spec.ClusterSelector.MatchLabels[labels.IstioMeshLabel]; got != "tenant-a" {
-		t.Errorf("expected mesh selector %q, got %q", "tenant-a", got)
+	if got := mcs.Spec.ClusterSelector.MatchLabels[labels.IstioMeshLabel]; got != testMesh {
+		t.Errorf("expected mesh selector %q, got %q", testMesh, got)
 	}
 	if hasDoesNotExistMeshExpression(mcs) {
 		t.Errorf("expected DoesNotExist expression to be removed")

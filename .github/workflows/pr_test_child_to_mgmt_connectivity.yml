@@ -53,6 +53,8 @@ jobs:
         with:
           go-version-file: kcm-repo/go.mod
           cache: false
+      - name: Install clusterctl
+        uses: ./.github/actions/install-clusterctl
       - name: "[Latest KCM Release] Install CLI"
         run: |
           make -C kcm-repo cli-install
@@ -81,7 +83,7 @@ jobs:
           cache: false
       - name: "[Istio PR] Install Istio"
         run: |
-          make dev-istio-deploy MGMT_INCLUDE_IN_MESH=true
+          make dev-istio-deploy MGMT_INCLUDE_IN_MESH=true MGMT_ISTIO_MESH=demo
       - name: "[Istio PR] Run KIND Istio Child cluster"
         run: |
           make dev-adopted-deploy KIND_CLUSTER_NAME=adopted-cluster

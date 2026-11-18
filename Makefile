@@ -101,6 +101,9 @@ dev-istio-deploy: dev istio-operator-docker-build ## Deploy k0rdent-istio helm c
 	@if [ -n "$(MGMT_INCLUDE_IN_MESH)" ]; then \
 		$(YQ) eval -i '.managementCluster.includeInMesh = true' dev/k0rdent-istio-values.yaml; \
 	fi
+	@if [ -n "$(MGMT_ISTIO_MESH)" ]; then \
+		$(YQ) eval -i '.managementCluster.istioMesh = "$(MGMT_ISTIO_MESH)"' dev/k0rdent-istio-values.yaml; \
+	fi
 	$(HELM_UPGRADE) --create-namespace -n istio-system k0rdent-istio ./charts/k0rdent-istio -f dev/k0rdent-istio-values.yaml
 
 .PHONY: istio-operator-docker-build
