@@ -2,6 +2,7 @@ package multicluster
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	kcmv1beta1 "github.com/K0rdent/kcm/api/v1beta1"
@@ -22,6 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// SpecHashAnnotation stores a hash of the desired MultiClusterService spec, so that
+// changes to the desired state (e.g. the mesh label) trigger an update.
+const SpecHashAnnotation = "k0rdent.mirantis.com/istio-spec-hash"
+
 type RemoteSecretPropagationManager struct {
 	client client.Client
 }
@@ -34,6 +39,10 @@ func New(c client.Client) *RemoteSecretPropagationManager {
 
 func (m *RemoteSecretPropagationManager) TryCreate(ctx context.Context, clusterDeployment *kcmv1beta1.ClusterDeployment) error {
 	log := log.FromContext(ctx)
+
+	if !utils.IsInMesh(clusterDeployment) {
+		m.sendMissingMeshLabelEvent(clusterDeployment)
+	}
 
 	if err := m.tryDeleteDeprecatedPropagationMCS(ctx, clusterDeployment.Name, clusterDeployment.Namespace); err != nil {
 		log.Error(err, "Failed to delete deprecated MultiClusterService for secret propagation")
@@ -95,12 +104,17 @@ func (m *RemoteSecretPropagationManager) TryDelete(ctx context.Context, req ctrl
 func (m *RemoteSecretPropagationManager) updateMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment, oldMCS *kcmv1beta1.MultiClusterService) error {
 	newMCS := m.generateMultiClusterService(cd)
 
-	if labels.IstioVersion(newMCS.Labels) == labels.IstioVersion(oldMCS.Labels) {
+	if labels.IstioVersion(newMCS.Labels) == labels.IstioVersion(oldMCS.Labels) &&
+		newMCS.Annotations[SpecHashAnnotation] == oldMCS.Annotations[SpecHashAnnotation] {
 		return nil
 	}
 
 	oldMCS.Spec = newMCS.Spec
 	oldMCS.Labels = newMCS.Labels
+	if oldMCS.Annotations == nil {
+		oldMCS.Annotations = map[string]string{}
+	}
+	oldMCS.Annotations[SpecHashAnnotation] = newMCS.Annotations[SpecHashAnnotation]
 	if err := m.client.Update(ctx, oldMCS); err != nil {
 		return fmt.Errorf("failed to update MultiClusterService: %w", err)
 	}
@@ -131,9 +145,13 @@ func (m *RemoteSecretPropagationManager) generateMultiClusterService(cd *kcmv1be
 	// One per-cluster MCS ships both discovery and CA material.
 	remoteIdentifier := "RemoteSecretData"
 	caIdentifier := "CASecretData"
-	remoteValuesYAML := utils.MustPropagationServiceValuesYAML(remoteIdentifier)
-
 	remoteSecretName := remotesecret.GetRemoteSecretName(cd.Name, cd.Namespace)
+	remoteValuesYAML := utils.MustPropagationServiceValuesYAML(remoteIdentifier)
+	if !utils.IsInMesh(cd) {
+		// Clusters without a mesh label must not share discovery credentials with
+		// other clusters, so the remote secret is only delivered to the cluster itself.
+		remoteValuesYAML = utils.MustSelfScopedPropagationServiceValuesYAML(remoteIdentifier, remoteSecretName)
+	}
 	caSecretName := cert.GetCASecretName(cd.Name, cd.Namespace)
 	caValuesYAML := utils.MustScopedCAPropagationServiceValuesYAML(caIdentifier, caSecretName)
 
@@ -209,6 +227,10 @@ func (m *RemoteSecretPropagationManager) generateMultiClusterService(cd *kcmv1be
 		}
 	}
 
+	mcs.Annotations = map[string]string{
+		SpecHashAnnotation: specHash(&mcs.Spec),
+	}
+
 	return mcs
 }
 
@@ -227,6 +249,24 @@ func (m *RemoteSecretPropagationManager) tryDeleteDeprecatedPropagationMCS(ctx c
 	}
 
 	return m.client.Delete(ctx, mcs)
+}
+
+func specHash(spec *kcmv1beta1.MultiClusterServiceSpec) string {
+	data, err := json.Marshal(spec)
+	if err != nil {
+		return ""
+	}
+	return hash.Fnv32a(string(data))
+}
+
+func (m *RemoteSecretPropagationManager) sendMissingMeshLabelEvent(cd *kcmv1beta1.ClusterDeployment) {
+	record.Warnf(
+		cd,
+		utils.GetEventsAnnotations(cd),
+		"IstioMeshLabelMissing",
+		"Cluster has no '%s' label: its remote secret is not shared with other clusters. Set the label to join a mesh",
+		labels.IstioMeshLabel,
+	)
 }
 
 func (m *RemoteSecretPropagationManager) sendUpdateEvent(cd *kcmv1beta1.ClusterDeployment) {

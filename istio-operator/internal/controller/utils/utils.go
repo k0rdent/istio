@@ -143,6 +143,20 @@ propagation:
 `, templateResourceName, "k0rdent.mirantis.com/kcm-region-cluster", templateResourceIdentifier)
 }
 
+// MustSelfScopedPropagationServiceValuesYAML builds Helm values for propagation.yaml
+// that enable propagation only on the cluster the source secret belongs to.
+// The target cluster hash is derived from the propagated source secret name suffix.
+func MustSelfScopedPropagationServiceValuesYAML(templateResourceIdentifier, templateResourceName string) string {
+	return fmt.Sprintf(`{{- $eligible := eq (adler32sum (printf "%%s-%%s" .Cluster.metadata.namespace .Cluster.metadata.name)) (last (splitList "-" %q)) }}
+propagation:
+  enabled: {{ $eligible }}
+  data: |
+{{ if $eligible }}
+{{ copy %q | nindent 14 }}
+{{ end }}
+`, templateResourceName, templateResourceIdentifier)
+}
+
 // IsClusterDeploymentReady checks if a ClusterDeployment is considered ready.
 // Due to a bug in KCM or its upstream dependency, where some conditions are always false,
 // we cannot rely solely on the Ready condition.
