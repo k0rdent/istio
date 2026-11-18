@@ -61,7 +61,6 @@ spec:
       name: {{ $templateDef.configMapName }}
       namespace: {{ $.Values.kcm.namespace }}
     deploymentType: Remote
-    path: ""
   {{- end }}
 ---
 apiVersion: k0rdent.mirantis.com/v1beta1
