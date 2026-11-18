@@ -1,0 +1,28 @@
+name: Install clusterctl
+description: |
+  Pre-installs the released clusterctl binary into the KCM local bin directory, so that
+  `make cli-install` in KCM skips `go install`, which fails for cluster-api modules with
+  replace directives.
+inputs:
+  kcm-dir:
+    description: Path to the KCM repository checkout
+    default: kcm-repo
+runs:
+  using: composite
+  steps:
+    - name: Install clusterctl
+      shell: bash --noprofile --norc -euo pipefail {0}
+      run: |
+        version=$(sed -nE 's/^CLUSTERCTL_VERSION[[:space:]]*\?=[[:space:]]*(v[0-9.]+).*/\1/p' "${{ inputs.kcm-dir }}/Makefile")
+        if [ -z "$version" ]; then
+          echo "CLUSTERCTL_VERSION not found in ${{ inputs.kcm-dir }}/Makefile, skipping"
+          exit 0
+        fi
+        bin_dir="${{ inputs.kcm-dir }}/bin"
+        mkdir -p "$bin_dir"
+        target="$bin_dir/clusterctl-$version"
+        if [ ! -x "$target" ]; then
+          curl -sSfL -o "$target" "https://github.com/kubernetes-sigs/cluster-api/releases/download/$version/clusterctl-linux-amd64"
+          chmod +x "$target"
+        fi
+        ln -sf "$(realpath "$target")" "$bin_dir/clusterctl"

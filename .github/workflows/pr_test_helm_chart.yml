@@ -76,6 +76,8 @@ jobs:
           key: kcm-cli-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             kcm-cli-${{ runner.os }}-
+      - name: Install clusterctl
+        uses: ./.github/actions/install-clusterctl
       - name: Install KCM CLI
         run: |
           make -C kcm-repo cli-install

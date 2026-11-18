@@ -225,6 +225,7 @@ func main() {
 			RemoteSecretPropagationManager: multicluster.New(mgr.GetClient()),
 			ManagementClusterName:          managementClusterName,
 			ManagementClusterAPIServer:     managementClusterAPIServer,
+			ManagementClusterMesh:          env.GetManagementClusterIstioMesh(),
 			ManagementClusterNamespace:     istio.IstioSystemNamespace,
 		}); err != nil {
 			setupLog.Error(err, "unable to add self-management runnable")

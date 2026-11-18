@@ -67,6 +67,8 @@ spec:
             value: {{ .Values.managementCluster.includeInMesh | default false | quote }}
           - name: "MANAGEMENT_CLUSTER_API_SERVER"
             value: {{ .Values.managementCluster.apiServer | default "" | quote }}
+          - name: "MANAGEMENT_CLUSTER_ISTIO_MESH"
+            value: {{ .Values.managementCluster.istioMesh | default "" | quote }}
         image: "
           {{- if and $global.registry (ne $global.registry "docker.io") }}{{ $global.registry }}
           {{- else }}{{ .Values.operator.image.registry }}

@@ -10,6 +10,9 @@ const (
 	// `MANAGEMENT_CLUSTER_API_SERVER` is the externally accessible URL of the management cluster API server.
 	// Required when running in-cluster so that Istiod on member clusters can reach the management cluster API server.
 	ManagementClusterAPIServerEnv = "MANAGEMENT_CLUSTER_API_SERVER"
+	// `MANAGEMENT_CLUSTER_ISTIO_MESH` is the Istio mesh name the management cluster belongs to.
+	// When empty, the management cluster remote secret is not shared with other clusters.
+	ManagementClusterIstioMeshEnv = "MANAGEMENT_CLUSTER_ISTIO_MESH"
 )
 
 // These constants are used to represent boolean values as strings, since environment variables are always strings.
@@ -36,4 +39,8 @@ func IsSelfManagementEnabled() bool {
 
 func GetManagementClusterAPIServer() string {
 	return GetEnvOrDefault(ManagementClusterAPIServerEnv, "")
+}
+
+func GetManagementClusterIstioMesh() string {
+	return GetEnvOrDefault(ManagementClusterIstioMeshEnv, "")
 }

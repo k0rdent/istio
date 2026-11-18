@@ -25,6 +25,7 @@ import (
 	"github.com/k0rdent/istio/istio-operator/internal/controller/istio/multicluster"
 	remotesecret "github.com/k0rdent/istio/istio-operator/internal/controller/istio/remote-secret"
 	"github.com/k0rdent/istio/istio-operator/internal/k8s"
+	"github.com/k0rdent/istio/istio-operator/internal/labels"
 	secretrotation "github.com/k0rdent/istio/istio-operator/internal/secret-rotation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -43,6 +44,8 @@ type SelfManagementReconciler struct {
 	ManagementClusterName          string
 	ManagementClusterNamespace     string
 	ManagementClusterAPIServer     string
+	// ManagementClusterMesh is the value of the istio-mesh label for the management cluster.
+	ManagementClusterMesh string
 }
 
 // Start creates all management cluster resources on startup (retrying until successful),
@@ -96,6 +99,11 @@ func (r *SelfManagementReconciler) reconcile(ctx context.Context) error {
 			Name:      r.ManagementClusterName,
 			Namespace: r.ManagementClusterNamespace,
 		},
+	}
+	if r.ManagementClusterMesh != "" {
+		cd.Labels = map[string]string{
+			labels.IstioMeshLabel: r.ManagementClusterMesh,
+		}
 	}
 
 	if err := r.RemoteSecretManager.TryCreateForLocalCluster(

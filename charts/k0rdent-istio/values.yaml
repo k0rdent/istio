@@ -21,6 +21,11 @@ managementCluster:
   # member clusters can reach the management cluster API server (e.g. "https://1.2.3.4:6443").
   apiServer: "https://kcm-dev-control-plane:6443"
 
+  # -- Istio mesh (value of the `k0rdent.mirantis.com/istio-mesh` label) the management cluster belongs to.
+  # When empty, the management cluster remote secret is not shared with other clusters.
+  # The management cluster's Sveltos cluster must carry the same label to receive secrets from the mesh.
+  istioMesh: ""
+
 cert-manager:
   # -- ServiceTemplate name
   template: cert-manager-v1-19-3
