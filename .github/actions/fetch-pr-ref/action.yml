@@ -1,21 +1,12 @@
 name: Fetch PR Reference
-description: Gets the PR merge commit SHA and checks out the repository
+description: Checks out the PR merge commit with full history
 runs:
   using: "composite"
   steps:
-    - name: Get PR ref
-      uses: actions/github-script@v7
-      id: pr
-      with:
-        script: |
-          const { data: pullRequest } = await github.rest.pulls.get({
-            ...context.repo,
-            pull_number: context.payload.pull_request.number,
-          });
-          return pullRequest
+    # `github.sha` is the merge commit of the PR head that triggered the run, while
+    # `github.event.pull_request.merge_commit_sha` may still point to a previous head.
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.pull_request.merge_commit_sha }}
+        ref: ${{ github.sha }}
         fetch-depth: 0
-
