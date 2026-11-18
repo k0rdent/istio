@@ -115,7 +115,12 @@ func (m *RemoteSecretPropagationManager) updateMultiClusterService(ctx context.C
 		oldMCS.Annotations = map[string]string{}
 	}
 	oldMCS.Annotations[SpecHashAnnotation] = newMCS.Annotations[SpecHashAnnotation]
-	if err := m.client.Update(ctx, oldMCS); err != nil {
+
+	obj, err := toUnstructured(oldMCS)
+	if err != nil {
+		return err
+	}
+	if err := m.client.Update(ctx, obj); err != nil {
 		return fmt.Errorf("failed to update MultiClusterService: %w", err)
 	}
 
@@ -138,7 +143,11 @@ func (m *RemoteSecretPropagationManager) getMultiClusterService(ctx context.Cont
 
 func (m *RemoteSecretPropagationManager) createMultiClusterService(ctx context.Context, cd *kcmv1beta1.ClusterDeployment) error {
 	mcs := m.generateMultiClusterService(cd)
-	return client.IgnoreAlreadyExists(m.client.Create(ctx, mcs))
+	obj, err := toUnstructured(mcs)
+	if err != nil {
+		return err
+	}
+	return client.IgnoreAlreadyExists(m.client.Create(ctx, obj))
 }
 
 func (m *RemoteSecretPropagationManager) generateMultiClusterService(cd *kcmv1beta1.ClusterDeployment) *kcmv1beta1.MultiClusterService {
